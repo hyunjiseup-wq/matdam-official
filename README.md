@@ -122,7 +122,8 @@ interface Restaurant {
 
 ## 초기 데이터
 
-`data/restaurants_from_json.json` 파일에 15개의 서울 맛집 샘플 데이터가 포함되어 있습니다.  
+기존에 개인적으로 네이버 지도에 저장하였던 목록들을 `data/restaurants_from_json.json` 파일로 받아서 진행하였습니다.
+`data/restaurants_from_json.json` 파일은 15개의 서울 맛집 샘플 데이터가 포함되어 있습니다.  
 앱을 **처음 실행**할 때 자동으로 로드됩니다. 이후에는 AsyncStorage에 저장된 데이터를 사용합니다.
 
 초기화하려면 앱 데이터를 삭제하거나 코드에서 `@seoul_restaurants_initialized` 키를 제거하세요.

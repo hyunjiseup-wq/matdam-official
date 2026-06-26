@@ -75,6 +75,7 @@ function RootNavigator() {
         }}
       />
       <Stack.Screen name="discover" options={{ title: '전체 맛집' }} />
+      <Stack.Screen name="guide" options={{ title: '앱 사용법' }} />
       <Stack.Screen name="explore" options={{ title: '둘러보기' }} />
       <Stack.Screen name="user/[id]" options={{ title: '리스트' }} />
       <Stack.Screen name="profile" options={{ title: '내 프로필' }} />

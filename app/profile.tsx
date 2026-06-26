@@ -201,6 +201,18 @@ export default function ProfileScreen() {
               <Text style={styles.viewListText}>내 리스트 미리보기 (다른 사람에게 보이는 모습)</Text>
             </Pressable>
           )}
+
+          {/* 앱 사용법 가이드 */}
+          <Pressable style={styles.guideRow} onPress={() => router.push('/guide' as any)}>
+            <View style={styles.guideIcon}>
+              <Ionicons name="book-outline" size={20} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.guideTitle}>📖 앱 사용법 가이드</Text>
+              <Text style={styles.guideSub}>맛담 200% 활용법, 3분이면 끝!</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -279,4 +291,25 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   viewListText: { color: '#6C5CE7', fontSize: 13, fontWeight: '600' },
+  guideRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#FFE4D6',
+  },
+  guideIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#FF7A45',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  guideTitle: { fontSize: 15, fontWeight: '700', color: '#1a1a1a' },
+  guideSub: { fontSize: 12, color: '#999', marginTop: 2 },
 });

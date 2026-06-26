@@ -10,7 +10,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
 import { Feedback, FeedbackStatus } from '@/types/restaurant';
 
@@ -27,46 +26,27 @@ const STATUS_LABEL: Record<FeedbackStatus, { label: string; color: string }> = {
   archived: { label: '보관', color: '#aaa' },
 };
 
-const FILTERS: { label: string; value: 'all' | FeedbackStatus }[] = [
-  { label: '전체', value: 'all' },
-  { label: '확인 중', value: 'open' },
-  { label: '처리완료', value: 'resolved' },
-  { label: '보관', value: 'archived' },
-];
-
-export default function AdminFeedbackScreen() {
-  const { isAdmin } = useAuth();
+export default function MyFeedbackScreen() {
   const router = useRouter();
-  const { getAllFeedback } = useRestaurants();
+  const { getMyFeedback } = useRestaurants();
   const [items, setItems] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | FeedbackStatus>('all');
 
   const load = useCallback(async () => {
     try {
-      setItems(await getAllFeedback());
+      setItems(await getMyFeedback());
     } catch {
       setItems([]);
     } finally {
       setLoading(false);
     }
-  }, [getAllFeedback]);
+  }, [getMyFeedback]);
 
   useFocusEffect(
     useCallback(() => {
-      if (isAdmin) load();
-      else setLoading(false);
-    }, [isAdmin, load]),
+      load();
+    }, [load]),
   );
-
-  if (!isAdmin) {
-    return (
-      <View style={styles.center}>
-        <Ionicons name="lock-closed-outline" size={40} color="#ccc" />
-        <Text style={styles.noAuth}>관리자만 볼 수 있는 화면이에요</Text>
-      </View>
-    );
-  }
 
   if (loading) {
     return (
@@ -76,24 +56,10 @@ export default function AdminFeedbackScreen() {
     );
   }
 
-  const shown = filter === 'all' ? items : items.filter((f) => f.status === filter);
-
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <View style={styles.filterRow}>
-        {FILTERS.map((f) => (
-          <Pressable
-            key={f.value}
-            onPress={() => setFilter(f.value)}
-            style={[styles.filterChip, filter === f.value && styles.filterChipActive]}
-          >
-            <Text style={[styles.filterText, filter === f.value && styles.filterTextActive]}>{f.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-
       <FlatList
-        data={shown}
+        data={items}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => {
           const t = TYPE_LABEL[item.type] ?? TYPE_LABEL.general;
@@ -111,19 +77,25 @@ export default function AdminFeedbackScreen() {
               </View>
               <Text style={styles.content} numberOfLines={2}>{item.content}</Text>
               <View style={styles.cardFooter}>
-                <Text style={styles.author}>— {item.display_name ?? '익명'}</Text>
+                <Text style={styles.date}>{new Date(item.created_at).toLocaleDateString('ko-KR')}</Text>
                 <View style={styles.replyHint}>
-                  <Ionicons name="chatbubble-ellipses-outline" size={14} color="#bbb" />
-                  <Text style={styles.replyHintText}>답글</Text>
+                  <Ionicons name="chatbubble-ellipses-outline" size={14} color="#6C5CE7" />
+                  <Text style={styles.replyHintText}>관리자 답변 보기</Text>
                 </View>
               </View>
             </Pressable>
           );
         }}
-        ListHeaderComponent={<Text style={styles.header}>피드백 {shown.length}건 · 탭하면 답글 대화</Text>}
+        ListHeaderComponent={
+          <Text style={styles.header}>내가 보낸 피드백 · 탭하면 관리자 답변/대화를 볼 수 있어요</Text>
+        }
         ListEmptyComponent={
           <View style={styles.emptyBox}>
-            <Text style={styles.emptySub}>해당 피드백이 없어요</Text>
+            <Text style={styles.emptyTitle}>아직 보낸 피드백이 없어요</Text>
+            <Pressable style={styles.writeBtn} onPress={() => router.push('/feedback' as any)}>
+              <Ionicons name="create-outline" size={18} color="#fff" />
+              <Text style={styles.writeBtnText}>피드백 보내기</Text>
+            </Pressable>
           </View>
         }
         contentContainerStyle={styles.list}
@@ -134,22 +106,9 @@ export default function AdminFeedbackScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F5F5F5' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  noAuth: { fontSize: 15, color: '#999' },
-  filterRow: { flexDirection: 'row', gap: 6, padding: 12, paddingBottom: 4 },
-  filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 18,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#eee',
-  },
-  filterChipActive: { backgroundColor: '#FF6B6B', borderColor: '#FF6B6B' },
-  filterText: { fontSize: 13, color: '#666' },
-  filterTextActive: { color: '#fff', fontWeight: '700' },
-  list: { padding: 16, paddingTop: 8 },
-  header: { fontSize: 13, color: '#888', marginBottom: 10, fontWeight: '600' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  list: { padding: 16 },
+  header: { fontSize: 13, color: '#888', marginBottom: 10, fontWeight: '600', lineHeight: 18 },
   card: {
     backgroundColor: '#fff',
     borderRadius: 14,
@@ -168,9 +127,19 @@ const styles = StyleSheet.create({
   status: { fontSize: 12, fontWeight: '700' },
   content: { fontSize: 15, color: '#333', lineHeight: 22 },
   cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  author: { fontSize: 13, color: '#999' },
+  date: { fontSize: 12, color: '#bbb' },
   replyHint: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  replyHintText: { fontSize: 12, color: '#bbb' },
-  emptyBox: { alignItems: 'center', paddingTop: 60 },
-  emptySub: { fontSize: 14, color: '#aaa' },
+  replyHintText: { fontSize: 12, color: '#6C5CE7', fontWeight: '600' },
+  emptyBox: { alignItems: 'center', paddingTop: 60, gap: 16 },
+  emptyTitle: { fontSize: 16, color: '#888' },
+  writeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  writeBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });

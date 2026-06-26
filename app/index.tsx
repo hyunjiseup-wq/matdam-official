@@ -22,13 +22,7 @@ export default function HomeScreen() {
     filteredRestaurants,
     loading,
     searchQuery,
-    areaFilter,
-    categoryFilter,
-    visitedFilter,
     setSearchQuery,
-    setAreaFilter,
-    setCategoryFilter,
-    setVisitedFilter,
     toggleVisited,
     toggleWishlist,
   } = useRestaurants();
@@ -75,14 +69,7 @@ export default function HomeScreen() {
             {!isEmpty && (
               <>
                 <SearchBar value={searchQuery} onChangeText={setSearchQuery} />
-                <FilterBar
-                  areaFilter={areaFilter}
-                  categoryFilter={categoryFilter}
-                  visitedFilter={visitedFilter}
-                  onAreaChange={setAreaFilter}
-                  onCategoryChange={setCategoryFilter}
-                  onVisitedChange={setVisitedFilter}
-                />
+                <FilterBar />
                 <View style={styles.countRow}>
                   <Text style={styles.countText}>내 맛집 {filteredRestaurants.length}개</Text>
                 </View>

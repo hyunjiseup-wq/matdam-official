@@ -4,7 +4,6 @@ import * as Linking from 'expo-linking';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -14,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CATEGORY_BG, CATEGORY_COLORS } from '@/constants/filters';
+import { confirmAction, notify } from '@/lib/confirm';
 import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
 import { Restaurant, Review } from '@/types/restaurant';
@@ -102,23 +102,17 @@ export default function DetailScreen() {
   }
 
   const isMine = restaurant.owner_id === user?.id;
-  const { name, area, category, address, naver_map_url, image_url, tags, memo, visited, wishlist, priority } = restaurant;
+  const { name, area, category, address, naver_map_url, map_source, image_url, tags, memo, visited, wishlist, priority } = restaurant;
   const catColor = category ? CATEGORY_COLORS[category] ?? '#888' : '#888';
   const catBg = category ? CATEGORY_BG[category] ?? '#f5f5f5' : '#f5f5f5';
+  const isGoogle = map_source === 'google';
 
   function handleDelete() {
-    Alert.alert('맛집 삭제', `"${name}"을(를) 내 리스트에서 삭제할까요?`, [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '삭제',
-        style: 'destructive',
-        onPress: async () => {
-          setDeleting(true);
-          await deleteRestaurant(id);
-          router.back();
-        },
-      },
-    ]);
+    confirmAction('맛집 삭제', `"${name}"을(를) 내 리스트에서 삭제할까요?`, async () => {
+      setDeleting(true);
+      await deleteRestaurant(id);
+      router.back();
+    }, '삭제', true);
   }
 
   async function handleCopy() {
@@ -126,43 +120,35 @@ export default function DetailScreen() {
     try {
       await copyRestaurant(restaurant);
       setCopied(true);
-      Alert.alert('담기 완료!', '내 리스트의 "가고싶음"에 추가됐어요.');
+      notify('담기 완료!', '내 리스트의 "가고싶음"에 추가됐어요.');
     } catch (e: any) {
-      Alert.alert('오류', e.message ?? '담기에 실패했어요.');
+      notify('오류', e.message ?? '담기에 실패했어요.');
     }
   }
 
   function handleOpenMap() {
     if (naver_map_url) {
-      Linking.openURL(naver_map_url).catch(() => Alert.alert('오류', '지도를 열 수 없습니다.'));
+      Linking.openURL(naver_map_url).catch(() => notify('오류', '지도를 열 수 없습니다.'));
       return;
     }
     if (address) {
       const encoded = encodeURIComponent(address);
-      Alert.alert('지도로 열기', '어떤 지도 앱으로 열까요?', [
-        { text: '네이버 지도', onPress: () => Linking.openURL(`https://map.naver.com/v5/search/${encoded}`) },
-        { text: '구글 지도', onPress: () => Linking.openURL(`https://www.google.com/maps/search/${encoded}`) },
-        { text: '취소', style: 'cancel' },
-      ]);
+      const url = isGoogle
+        ? `https://www.google.com/maps/search/${encoded}`
+        : `https://map.naver.com/v5/search/${encoded}`;
+      Linking.openURL(url).catch(() => notify('오류', '지도를 열 수 없습니다.'));
     }
   }
 
   function handleDeleteReview(reviewId: string) {
-    Alert.alert('리뷰 삭제', '이 리뷰를 삭제할까요? (관리자)', [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '삭제',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteReview(reviewId);
-            setReviews((prev) => prev.filter((r) => r.id !== reviewId));
-          } catch (e: any) {
-            Alert.alert('오류', e.message ?? '삭제 실패');
-          }
-        },
-      },
-    ]);
+    confirmAction('리뷰 삭제', '이 리뷰를 삭제할까요? (관리자)', async () => {
+      try {
+        await deleteReview(reviewId);
+        setReviews((prev) => prev.filter((r) => r.id !== reviewId));
+      } catch (e: any) {
+        notify('오류', e.message ?? '삭제 실패');
+      }
+    }, '삭제', true);
   }
 
   const avgRating = reviews.length > 0
@@ -185,6 +171,13 @@ export default function DetailScreen() {
             {area && (
               <View style={styles.areaBadge}>
                 <Text style={styles.areaBadgeText}>📍 {area}</Text>
+              </View>
+            )}
+            {map_source && (
+              <View style={[styles.areaBadge, { backgroundColor: isGoogle ? '#E8F0FE' : '#E6F8EE' }]}>
+                <Text style={[styles.areaBadgeText, { color: isGoogle ? '#4285F4' : '#03C75A', fontWeight: '700' }]}>
+                  {isGoogle ? 'G 구글지도' : 'N 네이버지도'}
+                </Text>
               </View>
             )}
             {!isMine && (
@@ -282,11 +275,18 @@ export default function DetailScreen() {
           </View>
         )}
 
-        {/* 네이버 지도 버튼 */}
-        {naver_map_url && (
-          <Pressable onPress={handleOpenMap} style={({ pressed }) => [styles.mapBtn, pressed && { opacity: 0.85 }]}>
+        {/* 지도 버튼 (출처에 맞게) */}
+        {(naver_map_url || address) && (
+          <Pressable
+            onPress={handleOpenMap}
+            style={({ pressed }) => [
+              styles.mapBtn,
+              { backgroundColor: isGoogle ? '#4285F4' : '#03C75A' },
+              pressed && { opacity: 0.85 },
+            ]}
+          >
             <Ionicons name="map" size={20} color="#fff" />
-            <Text style={styles.mapBtnText}>네이버 지도로 보기</Text>
+            <Text style={styles.mapBtnText}>{isGoogle ? '구글 지도로 보기' : '네이버 지도로 보기'}</Text>
           </Pressable>
         )}
 

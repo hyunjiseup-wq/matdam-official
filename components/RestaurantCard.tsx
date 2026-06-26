@@ -38,7 +38,7 @@ export default function RestaurantCard({
   onCopy,
   copied,
 }: Props) {
-  const { name, area, category, memo, tags, priority, visited, wishlist, image_url } = restaurant;
+  const { name, area, category, memo, tags, priority, visited, wishlist, image_url, map_source } = restaurant;
   const catColor = category ? CATEGORY_COLORS[category] ?? '#888' : '#888';
   const catBg = category ? CATEGORY_BG[category] ?? '#f5f5f5' : '#f5f5f5';
 
@@ -60,6 +60,23 @@ export default function RestaurantCard({
               {area && (
                 <View style={styles.areaBadge}>
                   <Text style={styles.areaBadgeText}>📍 {area}</Text>
+                </View>
+              )}
+              {map_source && (
+                <View
+                  style={[
+                    styles.mapBadge,
+                    { backgroundColor: map_source === 'google' ? '#E8F0FE' : '#E6F8EE' },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.mapBadgeText,
+                      { color: map_source === 'google' ? '#4285F4' : '#03C75A' },
+                    ]}
+                  >
+                    {map_source === 'google' ? 'G' : 'N'}
+                  </Text>
                 </View>
               )}
             </View>
@@ -185,6 +202,8 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 12, fontWeight: '600' },
   areaBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: '#f0f0f0' },
   areaBadgeText: { fontSize: 12, color: '#666' },
+  mapBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  mapBadgeText: { fontSize: 12, fontWeight: '800' },
   name: { fontSize: 17, fontWeight: '700', color: '#1a1a1a', marginBottom: 4 },
   memo: { fontSize: 13, color: '#666', lineHeight: 18, marginBottom: 6 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 4 },

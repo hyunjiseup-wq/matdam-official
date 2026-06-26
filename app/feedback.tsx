@@ -64,6 +64,10 @@ export default function FeedbackScreen() {
           >
             <Text style={styles.doneBtnText}>확인</Text>
           </Pressable>
+          <Pressable onPress={() => router.replace('/my-feedback' as any)} style={styles.doneLink}>
+            <Ionicons name="chatbubbles-outline" size={16} color="#6C5CE7" />
+            <Text style={styles.doneLinkText}>내 피드백 / 관리자 답변 보기</Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     );
@@ -79,6 +83,11 @@ export default function FeedbackScreen() {
           <Text style={styles.desc}>
             불편한 점, 추가됐으면 하는 기능, 잘못된 맛집 정보 등 뭐든 알려주세요!
           </Text>
+
+          <Pressable onPress={() => router.push('/my-feedback' as any)} style={styles.myFbLink}>
+            <Ionicons name="chatbubbles-outline" size={16} color="#6C5CE7" />
+            <Text style={styles.myFbText}>내가 보낸 피드백 / 관리자 답변 보기 →</Text>
+          </Pressable>
 
           {/* 유형 선택 */}
           <View style={styles.typeGrid}>
@@ -183,6 +192,18 @@ const styles = StyleSheet.create({
   },
   doneTitle: { fontSize: 20, fontWeight: '800', color: '#1a1a1a' },
   doneSub: { fontSize: 14, color: '#888' },
+  doneLink: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  doneLinkText: { color: '#6C5CE7', fontSize: 14, fontWeight: '600' },
+  myFbLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F0EEFF',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  myFbText: { color: '#6C5CE7', fontSize: 13, fontWeight: '600' },
   doneBtn: {
     marginTop: 16,
     backgroundColor: '#FF6B6B',

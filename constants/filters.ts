@@ -57,3 +57,33 @@ export function inferAreaFromAddress(address?: string): string | undefined {
   }
   return undefined;
 }
+
+// ── 지역 계층 (전체 → 시/도 → 구) ──────────────────────────────────────────────
+
+// 광역시/도 (주소 첫 단어로 매칭). 약칭/정식 모두 지원
+export const PROVINCES = [
+  '서울', '경기', '인천', '부산', '대구', '대전', '광주', '울산', '세종',
+  '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주',
+];
+
+// 주소에서 시/도 추출
+export function inferProvinceFromAddress(address?: string): string | undefined {
+  if (!address) return undefined;
+  for (const p of PROVINCES) {
+    if (address.includes(p)) return p;
+  }
+  return undefined;
+}
+
+// 주소에서 "○○구 / ○○시 / ○○군" 추출 (예: "서울 마포구 ..." → "마포구")
+export function inferDistrictFromAddress(address?: string): string | undefined {
+  if (!address) return undefined;
+  const m = address.match(/([가-힣]+(?:구|시|군))/g);
+  if (!m) return undefined;
+  // 시/도 약칭과 겹치는 첫 토큰은 건너뜀 (예: "부산시")
+  for (const token of m) {
+    const bare = token.replace(/(구|시|군)$/, '');
+    if (!PROVINCES.includes(bare)) return token;
+  }
+  return m[0];
+}

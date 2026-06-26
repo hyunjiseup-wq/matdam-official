@@ -17,15 +17,14 @@ import { Profile } from '@/types/restaurant';
 export default function ExploreScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { getUsers } = useRestaurants();
+  const { getUsers, likeList, unlikeList } = useRestaurants();
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getUsers();
-      setUsers(data);
+      setUsers(await getUsers());
     } catch {
       setUsers([]);
     } finally {
@@ -38,6 +37,24 @@ export default function ExploreScreen() {
       load();
     }, [load]),
   );
+
+  async function toggleLike(p: Profile) {
+    const liked = !p.liked;
+    // 낙관적 업데이트
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === p.id
+          ? { ...u, liked, like_count: (u.like_count ?? 0) + (liked ? 1 : -1) }
+          : u,
+      ),
+    );
+    try {
+      if (liked) await likeList(p.id);
+      else await unlikeList(p.id);
+    } catch {
+      load(); // 실패 시 새로고침
+    }
+  }
 
   if (loading) {
     return (
@@ -74,15 +91,36 @@ export default function ExploreScreen() {
                     </View>
                   )}
                 </View>
-                <Text style={styles.userCount}>맛집 {item.count ?? 0}개</Text>
+                <Text style={styles.userMeta}>
+                  맛집 {item.count ?? 0} · 👀 {item.view_count ?? 0}
+                </Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#ccc" />
+
+              {/* 좋아요 */}
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  if (!isMe) toggleLike(item);
+                }}
+                style={styles.likeBtn}
+                hitSlop={6}
+                disabled={isMe}
+              >
+                <Ionicons
+                  name={item.liked ? 'heart' : 'heart-outline'}
+                  size={20}
+                  color={item.liked ? '#FF6B6B' : '#ccc'}
+                />
+                <Text style={[styles.likeCount, item.liked && { color: '#FF6B6B' }]}>
+                  {item.like_count ?? 0}
+                </Text>
+              </Pressable>
             </Pressable>
           );
         }}
         ListHeaderComponent={
           <Text style={styles.header}>
-            다른 사람의 맛집 리스트를 구경하고{'\n'}맘에 드는 곳을 내 리스트로 담아보세요 👀
+            인기순으로 정렬돼요 🔥 좋아요·조회수가 많은 리스트가 위로!
           </Text>
         }
         ListEmptyComponent={
@@ -131,7 +169,9 @@ const styles = StyleSheet.create({
   meTag: { fontSize: 13, color: '#aaa', fontWeight: '500' },
   adminBadge: { backgroundColor: '#FFE8E8', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
   adminBadgeText: { fontSize: 11, color: '#FF6B6B', fontWeight: '700' },
-  userCount: { fontSize: 13, color: '#999', marginTop: 2 },
+  userMeta: { fontSize: 13, color: '#999', marginTop: 2 },
+  likeBtn: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, minWidth: 36 },
+  likeCount: { fontSize: 12, color: '#bbb', fontWeight: '600', marginTop: 1 },
   emptyBox: { alignItems: 'center', paddingTop: 60 },
   emptySub: { fontSize: 14, color: '#aaa' },
 });

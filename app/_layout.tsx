@@ -68,6 +68,7 @@ function RootNavigator() {
                 <HeaderIcon name="mail-outline" onPress={() => router.push('/admin/feedback' as any)} />
               )}
               <HeaderIcon name="compass-outline" onPress={() => router.push('/explore' as any)} />
+              <HeaderIcon name="person-circle-outline" onPress={() => router.push('/profile' as any)} />
               <HeaderIcon name="chatbubble-outline" onPress={() => router.push('/feedback' as any)} />
             </View>
           ),
@@ -75,6 +76,9 @@ function RootNavigator() {
       />
       <Stack.Screen name="explore" options={{ title: '둘러보기' }} />
       <Stack.Screen name="user/[id]" options={{ title: '리스트' }} />
+      <Stack.Screen name="profile" options={{ title: '내 프로필' }} />
+      <Stack.Screen name="my-feedback" options={{ title: '내 피드백' }} />
+      <Stack.Screen name="feedback-thread/[id]" options={{ title: '피드백 대화' }} />
       <Stack.Screen
         name="form"
         options={({ route }: any) => ({

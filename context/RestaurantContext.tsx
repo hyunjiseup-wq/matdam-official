@@ -10,7 +10,15 @@ import React, {
 import { inferAreaFromAddress } from '@/constants/filters';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Feedback, Profile, Restaurant, Review, VisitedFilter } from '@/types/restaurant';
+import {
+  Feedback,
+  FeedbackReply,
+  FeedbackStatus,
+  Profile,
+  Restaurant,
+  Review,
+  VisitedFilter,
+} from '@/types/restaurant';
 import rawSeedData from '@/seoul_restaurant_app_starter/restaurants_from_json.json';
 
 // ── 타입 ─────────────────────────────────────────────────────────────────────
@@ -19,15 +27,17 @@ type NewRestaurant = Omit<Restaurant, 'id' | 'owner_id' | 'created_at' | 'update
 type EditRestaurant = Partial<Omit<Restaurant, 'id' | 'owner_id' | 'created_at'>>;
 
 interface RestaurantContextType {
-  restaurants: Restaurant[];          // 내 리스트
+  restaurants: Restaurant[];
   filteredRestaurants: Restaurant[];
   loading: boolean;
   error: string | null;
   searchQuery: string;
+  provinceFilter: string | null;
   areaFilter: string | null;
   categoryFilter: string | null;
   visitedFilter: VisitedFilter;
   setSearchQuery: (q: string) => void;
+  setProvinceFilter: (p: string | null) => void;
   setAreaFilter: (a: string | null) => void;
   setCategoryFilter: (c: string | null) => void;
   setVisitedFilter: (v: VisitedFilter) => void;
@@ -39,22 +49,34 @@ interface RestaurantContextType {
   toggleVisited: (id: string) => Promise<void>;
   toggleWishlist: (id: string) => Promise<void>;
   copyRestaurant: (src: Restaurant) => Promise<string>;
-  // 둘러보기
+  uploadPhoto: (file: Blob, ext?: string) => Promise<string>;
+  // 둘러보기 / 프로필
   getUsers: () => Promise<Profile[]>;
   getUserRestaurants: (userId: string) => Promise<Restaurant[]>;
+  getProfile: (userId: string) => Promise<Profile | null>;
+  updateProfile: (patch: { display_name?: string; bio?: string; sns_url?: string }) => Promise<void>;
+  likeList: (ownerId: string) => Promise<void>;
+  unlikeList: (ownerId: string) => Promise<void>;
+  incrementProfileView: (ownerId: string) => Promise<void>;
   // 리뷰
   getReviews: (restaurantId: string) => Promise<Review[]>;
   saveReview: (restaurantId: string, rating: number, content: string) => Promise<void>;
-  deleteReview: (reviewId: string) => Promise<void>;       // 관리자 전용
+  deleteReview: (reviewId: string) => Promise<void>;
   // 피드백
   submitFeedback: (type: string, content: string) => Promise<void>;
-  getAllFeedback: () => Promise<Feedback[]>;               // 관리자 전용
+  getFeedbackById: (id: string) => Promise<Feedback | null>;
+  getMyFeedback: () => Promise<Feedback[]>;
+  getAllFeedback: () => Promise<Feedback[]>;
+  getFeedbackReplies: (feedbackId: string) => Promise<FeedbackReply[]>;
+  addFeedbackReply: (feedbackId: string, content: string) => Promise<void>;
+  setFeedbackStatus: (id: string, status: FeedbackStatus) => Promise<void>;
+  deleteFeedback: (id: string) => Promise<void>;
 }
 
 // ── Supabase 행 변환 ─────────────────────────────────────────────────────────
 
 const RESTAURANT_COLUMNS =
-  'id, owner_id, name, area, category, address, naver_map_url, image_url, tags, memo, visited, wishlist, priority, created_at, updated_at';
+  'id, owner_id, name, area, category, address, naver_map_url, map_source, image_url, tags, memo, visited, wishlist, priority, created_at, updated_at';
 
 type SupabaseRow = {
   id: string;
@@ -64,6 +86,7 @@ type SupabaseRow = {
   category: string | null;
   address: string | null;
   naver_map_url: string | null;
+  map_source: string | null;
   image_url: string | null;
   tags: string[] | null;
   memo: string | null;
@@ -83,6 +106,7 @@ function fromRow(row: SupabaseRow): Restaurant {
     category: row.category ?? undefined,
     address: row.address ?? undefined,
     naver_map_url: row.naver_map_url ?? undefined,
+    map_source: (row.map_source as Restaurant['map_source']) ?? undefined,
     image_url: row.image_url ?? undefined,
     tags: row.tags ?? undefined,
     memo: row.memo ?? undefined,
@@ -121,7 +145,6 @@ function makeUUID(): string {
   });
 }
 
-// 테이블이 비어 있으면 관리자 소유로 311개 시드
 async function seedIfEmpty(ownerId: string) {
   const already = await AsyncStorage.getItem(SEEDED_KEY);
   if (already) return;
@@ -159,7 +182,6 @@ async function seedIfEmpty(ownerId: string) {
       tags: tags && tags.length > 0 ? tags : null,
       memo: r.memo || null,
       visited: false,
-      wishlist: false,
       priority: r.priority ?? 3,
     };
   });
@@ -177,7 +199,6 @@ async function seedIfEmpty(ownerId: string) {
   if (allOk) await AsyncStorage.setItem(SEEDED_KEY, 'true');
 }
 
-// 주인 없는(예전에 시드된) 맛집을 관리자 소유로 귀속
 async function claimUnowned(ownerId: string) {
   const { error } = await supabase
     .from('seoul_restaurants')
@@ -193,11 +214,14 @@ const RestaurantContext = createContext<RestaurantContextType | null>(null);
 export function RestaurantProvider({ children }: { children: React.ReactNode }) {
   const { user, isAdmin } = useAuth();
   const userId = user?.id ?? null;
+  const displayName =
+    user?.user_metadata?.display_name ?? user?.email?.split('@')[0] ?? '익명';
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [provinceFilter, setProvinceFilter] = useState<string | null>(null);
   const [areaFilter, setAreaFilter] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [visitedFilter, setVisitedFilter] = useState<VisitedFilter>('all');
@@ -210,9 +234,8 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       .order('priority', { ascending: false })
       .order('name', { ascending: true });
 
-    if (err) {
-      setError(err.message);
-    } else {
+    if (err) setError(err.message);
+    else {
       setRestaurants((data as SupabaseRow[]).map(fromRow));
       setError(null);
     }
@@ -239,22 +262,29 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
     };
   }, [userId, isAdmin, fetchMine]);
 
-  // ── 필터링 (인메모리) ─────────────────────────────────────────────────────
+  // ── 필터링 ─────────────────────────────────────────────────────────────────
 
   const filteredRestaurants = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return restaurants.filter((r) => {
       if (q) {
-        const hay = `${r.name} ${r.area ?? ''} ${r.memo ?? ''}`.toLowerCase();
+        const hay = `${r.name} ${r.area ?? ''} ${r.memo ?? ''} ${r.address ?? ''}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
-      if (areaFilter && r.area !== areaFilter) return false;
+      // provinceFilter는 시/도 (예: 서울), 주소 앞부분과 매칭
+      if (provinceFilter && !(r.address ?? '').includes(provinceFilter)) return false;
+      // areaFilter는 "구" 단위 (예: 마포구) 또는 동네(area)와 매칭
+      if (areaFilter) {
+        const inDistrict = r.address?.includes(areaFilter);
+        const inArea = r.area === areaFilter;
+        if (!inDistrict && !inArea) return false;
+      }
       if (categoryFilter && r.category !== categoryFilter) return false;
       if (visitedFilter === 'visited' && !r.visited) return false;
       if (visitedFilter === 'wishlist' && !r.wishlist) return false;
       return true;
     });
-  }, [restaurants, searchQuery, areaFilter, categoryFilter, visitedFilter]);
+  }, [restaurants, searchQuery, provinceFilter, areaFilter, categoryFilter, visitedFilter]);
 
   const getRestaurant = useCallback(
     (id: string) => restaurants.find((r) => r.id === id),
@@ -270,6 +300,22 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
     if (err || !data) return null;
     return fromRow(data as SupabaseRow);
   }, []);
+
+  // ── 사진 업로드 ──────────────────────────────────────────────────────────
+
+  const uploadPhoto = useCallback(
+    async (file: Blob, ext = 'jpg'): Promise<string> => {
+      if (!userId) throw new Error('로그인이 필요합니다');
+      const path = `${userId}/${makeUUID()}.${ext}`;
+      const { error: err } = await supabase.storage
+        .from('restaurant-photos')
+        .upload(path, file, { contentType: (file as any).type || 'image/jpeg', upsert: false });
+      if (err) throw new Error(err.message);
+      const { data } = supabase.storage.from('restaurant-photos').getPublicUrl(path);
+      return data.publicUrl;
+    },
+    [userId],
+  );
 
   // ── 내 리스트 CRUD ─────────────────────────────────────────────────────────
 
@@ -287,6 +333,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
           category: data.category ?? null,
           address: data.address ?? null,
           naver_map_url: data.naver_map_url ?? null,
+          map_source: data.map_source ?? null,
           image_url: data.image_url ?? null,
           tags: data.tags ?? null,
           memo: data.memo ?? null,
@@ -315,6 +362,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
           ...(data.category !== undefined && { category: data.category ?? null }),
           ...(data.address !== undefined && { address: data.address ?? null }),
           ...(data.naver_map_url !== undefined && { naver_map_url: data.naver_map_url ?? null }),
+          ...(data.map_source !== undefined && { map_source: data.map_source ?? null }),
           ...(data.image_url !== undefined && { image_url: data.image_url ?? null }),
           ...(data.tags !== undefined && { tags: data.tags ?? null }),
           ...(data.memo !== undefined && { memo: data.memo ?? null }),
@@ -365,7 +413,6 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
     [restaurants, updateRestaurant],
   );
 
-  // 남의 맛집을 내 리스트로 담기
   const copyRestaurant = useCallback(
     async (src: Restaurant) => {
       if (!userId) throw new Error('로그인이 필요합니다');
@@ -380,11 +427,12 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
           category: src.category ?? null,
           address: src.address ?? null,
           naver_map_url: src.naver_map_url ?? null,
+          map_source: src.map_source ?? null,
           image_url: src.image_url ?? null,
           tags: src.tags ?? null,
           memo: src.memo ?? null,
           visited: false,
-          wishlist: true, // 담은 건 기본적으로 '가고싶음'
+          wishlist: true,
           priority: src.priority,
         })
         .select(RESTAURANT_COLUMNS)
@@ -397,14 +445,10 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
     [userId],
   );
 
-  // ── 둘러보기 ──────────────────────────────────────────────────────────────
+  // ── 둘러보기 / 프로필 ─────────────────────────────────────────────────────
 
   const getUsers = useCallback(async (): Promise<Profile[]> => {
-    const { data: profs, error: pErr } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('is_admin', { ascending: false })
-      .order('created_at', { ascending: true });
+    const { data: profs, error: pErr } = await supabase.from('profiles').select('*');
     if (pErr) throw new Error(pErr.message);
 
     const { data: owners } = await supabase.from('seoul_restaurants').select('owner_id');
@@ -413,8 +457,30 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       if (r.owner_id) counts.set(r.owner_id, (counts.get(r.owner_id) ?? 0) + 1);
     }
 
-    return (profs as Profile[]).map((p) => ({ ...p, count: counts.get(p.id) ?? 0 }));
-  }, []);
+    const { data: likes } = await supabase.from('list_likes').select('liker_id, owner_id');
+    const likeCounts = new Map<string, number>();
+    const myLikes = new Set<string>();
+    for (const l of (likes ?? []) as { liker_id: string; owner_id: string }[]) {
+      likeCounts.set(l.owner_id, (likeCounts.get(l.owner_id) ?? 0) + 1);
+      if (l.liker_id === userId) myLikes.add(l.owner_id);
+    }
+
+    const result = (profs as Profile[]).map((p) => ({
+      ...p,
+      count: counts.get(p.id) ?? 0,
+      like_count: likeCounts.get(p.id) ?? 0,
+      liked: myLikes.has(p.id),
+    }));
+
+    // 인기순: 좋아요 → 조회수 → 맛집수
+    result.sort(
+      (a, b) =>
+        (b.like_count ?? 0) - (a.like_count ?? 0) ||
+        (b.view_count ?? 0) - (a.view_count ?? 0) ||
+        (b.count ?? 0) - (a.count ?? 0),
+    );
+    return result;
+  }, [userId]);
 
   const getUserRestaurants = useCallback(async (uid: string): Promise<Restaurant[]> => {
     const { data, error: err } = await supabase
@@ -426,6 +492,57 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
     if (err) throw new Error(err.message);
     return (data as SupabaseRow[]).map(fromRow);
   }, []);
+
+  const getProfile = useCallback(async (uid: string): Promise<Profile | null> => {
+    const { data } = await supabase.from('profiles').select('*').eq('id', uid).single();
+    return (data as Profile) ?? null;
+  }, []);
+
+  const updateProfile = useCallback(
+    async (patch: { display_name?: string; bio?: string; sns_url?: string }) => {
+      if (!userId) throw new Error('로그인이 필요합니다');
+      const { error: err } = await supabase
+        .from('profiles')
+        .update({
+          ...(patch.display_name !== undefined && { display_name: patch.display_name }),
+          ...(patch.bio !== undefined && { bio: patch.bio || null }),
+          ...(patch.sns_url !== undefined && { sns_url: patch.sns_url || null }),
+        })
+        .eq('id', userId);
+      if (err) throw new Error(err.message);
+      if (patch.display_name !== undefined) {
+        await supabase.auth.updateUser({ data: { display_name: patch.display_name } });
+      }
+    },
+    [userId],
+  );
+
+  const likeList = useCallback(
+    async (ownerId: string) => {
+      if (!userId) throw new Error('로그인이 필요합니다');
+      const { error: err } = await supabase
+        .from('list_likes')
+        .upsert({ liker_id: userId, owner_id: ownerId });
+      if (err) throw new Error(err.message);
+    },
+    [userId],
+  );
+
+  const unlikeList = useCallback(
+    async (ownerId: string) => {
+      if (!userId) return;
+      await supabase.from('list_likes').delete().eq('liker_id', userId).eq('owner_id', ownerId);
+    },
+    [userId],
+  );
+
+  const incrementProfileView = useCallback(
+    async (ownerId: string) => {
+      if (!ownerId || ownerId === userId) return;
+      await supabase.rpc('increment_profile_view', { p_id: ownerId });
+    },
+    [userId],
+  );
 
   // ── 리뷰 ─────────────────────────────────────────────────────────────────
 
@@ -442,9 +559,6 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
   const saveReview = useCallback(
     async (restaurantId: string, rating: number, content: string) => {
       if (!userId) throw new Error('로그인이 필요합니다');
-      const displayName =
-        user?.user_metadata?.display_name ?? user?.email?.split('@')[0] ?? '익명';
-
       const { error: err } = await supabase.from('restaurant_reviews').upsert(
         {
           id: makeUUID(),
@@ -459,7 +573,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       );
       if (err) throw new Error(err.message);
     },
-    [userId, user],
+    [userId, displayName],
   );
 
   const deleteReview = useCallback(
@@ -475,19 +589,34 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
 
   const submitFeedback = useCallback(
     async (type: string, content: string) => {
-      const displayName =
-        user?.user_metadata?.display_name ?? user?.email?.split('@')[0] ?? '익명';
       const { error: err } = await supabase.from('app_feedback').insert({
         id: makeUUID(),
         user_id: userId ?? null,
         display_name: displayName,
         type,
         content,
+        status: 'open',
       });
       if (err) throw new Error(err.message);
     },
-    [userId, user],
+    [userId, displayName],
   );
+
+  const getFeedbackById = useCallback(async (id: string): Promise<Feedback | null> => {
+    const { data } = await supabase.from('app_feedback').select('*').eq('id', id).single();
+    return (data as Feedback) ?? null;
+  }, []);
+
+  const getMyFeedback = useCallback(async (): Promise<Feedback[]> => {
+    if (!userId) return [];
+    const { data, error: err } = await supabase
+      .from('app_feedback')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    if (err) throw new Error(err.message);
+    return (data ?? []) as Feedback[];
+  }, [userId]);
 
   const getAllFeedback = useCallback(async (): Promise<Feedback[]> => {
     if (!isAdmin) throw new Error('관리자만 볼 수 있어요');
@@ -499,6 +628,50 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
     return (data ?? []) as Feedback[];
   }, [isAdmin]);
 
+  const getFeedbackReplies = useCallback(async (feedbackId: string): Promise<FeedbackReply[]> => {
+    const { data, error: err } = await supabase
+      .from('feedback_replies')
+      .select('*')
+      .eq('feedback_id', feedbackId)
+      .order('created_at', { ascending: true });
+    if (err) throw new Error(err.message);
+    return (data ?? []) as FeedbackReply[];
+  }, []);
+
+  const addFeedbackReply = useCallback(
+    async (feedbackId: string, content: string) => {
+      if (!userId) throw new Error('로그인이 필요합니다');
+      const { error: err } = await supabase.from('feedback_replies').insert({
+        id: makeUUID(),
+        feedback_id: feedbackId,
+        user_id: userId,
+        is_admin: isAdmin,
+        display_name: displayName,
+        content,
+      });
+      if (err) throw new Error(err.message);
+    },
+    [userId, isAdmin, displayName],
+  );
+
+  const setFeedbackStatus = useCallback(
+    async (id: string, status: FeedbackStatus) => {
+      if (!isAdmin) throw new Error('관리자만 가능해요');
+      const { error: err } = await supabase.from('app_feedback').update({ status }).eq('id', id);
+      if (err) throw new Error(err.message);
+    },
+    [isAdmin],
+  );
+
+  const deleteFeedback = useCallback(
+    async (id: string) => {
+      if (!isAdmin) throw new Error('관리자만 가능해요');
+      const { error: err } = await supabase.from('app_feedback').delete().eq('id', id);
+      if (err) throw new Error(err.message);
+    },
+    [isAdmin],
+  );
+
   // ── Value ─────────────────────────────────────────────────────────────────
 
   const value = useMemo<RestaurantContextType>(
@@ -508,10 +681,12 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       loading,
       error,
       searchQuery,
+      provinceFilter,
       areaFilter,
       categoryFilter,
       visitedFilter,
       setSearchQuery,
+      setProvinceFilter,
       setAreaFilter,
       setCategoryFilter,
       setVisitedFilter,
@@ -523,13 +698,25 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       toggleVisited,
       toggleWishlist,
       copyRestaurant,
+      uploadPhoto,
       getUsers,
       getUserRestaurants,
+      getProfile,
+      updateProfile,
+      likeList,
+      unlikeList,
+      incrementProfileView,
       getReviews,
       saveReview,
       deleteReview,
       submitFeedback,
+      getFeedbackById,
+      getMyFeedback,
       getAllFeedback,
+      getFeedbackReplies,
+      addFeedbackReply,
+      setFeedbackStatus,
+      deleteFeedback,
     }),
     [
       restaurants,
@@ -537,6 +724,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       loading,
       error,
       searchQuery,
+      provinceFilter,
       areaFilter,
       categoryFilter,
       visitedFilter,
@@ -548,13 +736,25 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       toggleVisited,
       toggleWishlist,
       copyRestaurant,
+      uploadPhoto,
       getUsers,
       getUserRestaurants,
+      getProfile,
+      updateProfile,
+      likeList,
+      unlikeList,
+      incrementProfileView,
       getReviews,
       saveReview,
       deleteReview,
       submitFeedback,
+      getFeedbackById,
+      getMyFeedback,
       getAllFeedback,
+      getFeedbackReplies,
+      addFeedbackReply,
+      setFeedbackStatus,
+      deleteFeedback,
     ],
   );
 

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,8 +15,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AREAS, CATEGORIES } from '@/constants/filters';
+import { notify } from '@/lib/confirm';
 import { useRestaurants } from '@/context/RestaurantContext';
-import { Restaurant } from '@/types/restaurant';
+import { MapSource, Restaurant } from '@/types/restaurant';
 
 function Label({ text, required }: { text: string; required?: boolean }) {
   return (
@@ -98,6 +99,7 @@ type FormData = {
   category: string;
   address: string;
   naver_map_url: string;
+  map_source: '' | MapSource;
   image_url: string;
   tagsInput: string;
   memo: string;
@@ -109,7 +111,7 @@ type FormData = {
 export default function FormScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const router = useRouter();
-  const { getRestaurant, addRestaurant, updateRestaurant } = useRestaurants();
+  const { getRestaurant, addRestaurant, updateRestaurant, uploadPhoto } = useRestaurants();
 
   const isEdit = Boolean(id);
   const existing = id ? getRestaurant(id) : undefined;
@@ -120,6 +122,7 @@ export default function FormScreen() {
     category: '',
     address: '',
     naver_map_url: '',
+    map_source: '',
     image_url: '',
     tagsInput: '',
     memo: '',
@@ -128,6 +131,7 @@ export default function FormScreen() {
     priority: 3,
   });
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (existing) {
@@ -137,6 +141,7 @@ export default function FormScreen() {
         category: existing.category ?? '',
         address: existing.address ?? '',
         naver_map_url: existing.naver_map_url ?? '',
+        map_source: existing.map_source ?? '',
         image_url: existing.image_url ?? '',
         tagsInput: (existing.tags ?? []).join(', '),
         memo: existing.memo ?? '',
@@ -151,9 +156,34 @@ export default function FormScreen() {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  function pickPhoto() {
+    if (Platform.OS !== 'web') {
+      notify('안내', '사진 직접 업로드는 웹에서 가능해요.\n모바일에서는 아래에 이미지 URL을 붙여넣어 주세요.');
+      return;
+    }
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      setUploading(true);
+      try {
+        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+        const url = await uploadPhoto(file, ext);
+        set('image_url', url);
+      } catch (e: any) {
+        notify('업로드 실패', e.message ?? '다시 시도해주세요.');
+      } finally {
+        setUploading(false);
+      }
+    };
+    input.click();
+  }
+
   async function handleSave() {
     if (!form.name.trim()) {
-      Alert.alert('입력 오류', '식당 이름을 입력해주세요.');
+      notify('입력 오류', '식당 이름을 입력해주세요.');
       return;
     }
     setSaving(true);
@@ -168,6 +198,7 @@ export default function FormScreen() {
       category: form.category || undefined,
       address: form.address.trim() || undefined,
       naver_map_url: form.naver_map_url.trim() || undefined,
+      map_source: form.map_source || undefined,
       image_url: form.image_url.trim() || undefined,
       tags: tags.length > 0 ? tags : undefined,
       memo: form.memo.trim() || undefined,
@@ -184,7 +215,7 @@ export default function FormScreen() {
       }
       router.back();
     } catch (e: any) {
-      Alert.alert('오류', e.message ?? '저장에 실패했어요.');
+      notify('오류', e.message ?? '저장에 실패했어요.');
     } finally {
       setSaving(false);
     }
@@ -253,26 +284,64 @@ export default function FormScreen() {
             />
           </Field>
 
-          {/* 네이버 지도 URL */}
-          <Field label="네이버 지도 URL">
+          {/* 지도 출처 + 링크 */}
+          <Field label="지도 링크">
+            <View style={styles.sourceRow}>
+              <Pressable
+                onPress={() => set('map_source', form.map_source === 'naver' ? '' : 'naver')}
+                style={[styles.sourceChip, form.map_source === 'naver' && styles.sourceChipNaver]}
+              >
+                <Text style={[styles.sourceChipText, form.map_source === 'naver' && { color: '#fff' }]}>
+                  N 네이버
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => set('map_source', form.map_source === 'google' ? '' : 'google')}
+                style={[styles.sourceChip, form.map_source === 'google' && styles.sourceChipGoogle]}
+              >
+                <Text style={[styles.sourceChipText, form.map_source === 'google' && { color: '#fff' }]}>
+                  G 구글
+                </Text>
+              </Pressable>
+              <Text style={styles.sourceHint}>출처 선택 (배지로 표시돼요)</Text>
+            </View>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { marginTop: 8 }]}
               value={form.naver_map_url}
               onChangeText={(v) => set('naver_map_url', v)}
-              placeholder="https://map.naver.com/..."
+              placeholder="지도 링크 붙여넣기 (네이버/구글 모두 가능)"
               placeholderTextColor="#ccc"
               autoCapitalize="none"
               keyboardType="url"
             />
           </Field>
 
-          {/* 음식 사진 URL */}
-          <Field label="음식 사진 URL">
+          {/* 음식 사진 (업로드 또는 URL) */}
+          <Field label="음식 사진">
+            {form.image_url ? (
+              <Image source={{ uri: form.image_url }} style={styles.preview} />
+            ) : null}
+            <View style={styles.photoRow}>
+              <Pressable
+                onPress={pickPhoto}
+                disabled={uploading}
+                style={({ pressed }) => [styles.uploadBtn, pressed && { opacity: 0.85 }, uploading && { opacity: 0.6 }]}
+              >
+                <Ionicons name="cloud-upload-outline" size={18} color="#6C5CE7" />
+                <Text style={styles.uploadBtnText}>{uploading ? '업로드 중...' : '사진 업로드'}</Text>
+              </Pressable>
+              {form.image_url ? (
+                <Pressable onPress={() => set('image_url', '')} style={styles.removePhotoBtn}>
+                  <Ionicons name="trash-outline" size={16} color="#FF6B6B" />
+                  <Text style={styles.removePhotoText}>제거</Text>
+                </Pressable>
+              ) : null}
+            </View>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { marginTop: 8 }]}
               value={form.image_url}
               onChangeText={(v) => set('image_url', v)}
-              placeholder="https://... (이미지 URL 붙여넣기)"
+              placeholder="또는 이미지 URL 붙여넣기"
               placeholderTextColor="#ccc"
               autoCapitalize="none"
               keyboardType="url"
@@ -408,4 +477,35 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+
+  sourceRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sourceChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
+  },
+  sourceChipNaver: { backgroundColor: '#03C75A', borderColor: '#03C75A' },
+  sourceChipGoogle: { backgroundColor: '#4285F4', borderColor: '#4285F4' },
+  sourceChipText: { fontSize: 13, color: '#555', fontWeight: '700' },
+  sourceHint: { fontSize: 12, color: '#bbb', flex: 1 },
+
+  preview: { width: '100%', height: 160, borderRadius: 10, backgroundColor: '#f0f0f0', marginBottom: 8 },
+  photoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  uploadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#6C5CE7',
+    backgroundColor: '#fff',
+  },
+  uploadBtnText: { color: '#6C5CE7', fontSize: 14, fontWeight: '700' },
+  removePhotoBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 8 },
+  removePhotoText: { color: '#FF6B6B', fontSize: 13, fontWeight: '600' },
 });

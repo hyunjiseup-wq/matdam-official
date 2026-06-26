@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { notify } from '@/lib/confirm';
 import { useRestaurants } from '@/context/RestaurantContext';
 
 function StarPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
@@ -47,17 +47,16 @@ export default function ReviewScreen() {
 
   async function handleSave() {
     if (rating === 0) {
-      Alert.alert('별점을 선택해주세요');
+      notify('별점을 선택해주세요');
       return;
     }
     setSaving(true);
     try {
       await saveReview(id, rating, content);
-      Alert.alert('리뷰 저장 완료!', '리뷰가 저장됐어요.', [
-        { text: '확인', onPress: () => router.back() },
-      ]);
+      notify('리뷰 저장 완료!', '리뷰가 저장됐어요.');
+      router.back();
     } catch (e: any) {
-      Alert.alert('오류', e.message ?? '저장에 실패했어요.');
+      notify('오류', e.message ?? '저장에 실패했어요.');
     } finally {
       setSaving(false);
     }

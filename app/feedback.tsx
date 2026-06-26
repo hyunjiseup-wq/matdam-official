@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -28,23 +27,46 @@ export default function FeedbackScreen() {
   const [type, setType] = useState('general');
   const [content, setContent] = useState('');
   const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   async function handleSend() {
+    if (sending || sent) return; // 중복 전송 방지
     if (!content.trim()) {
-      Alert.alert('내용을 입력해주세요');
+      setErrorMsg('내용을 입력해주세요.');
       return;
     }
+    setErrorMsg('');
     setSending(true);
     try {
       await submitFeedback(type, content.trim());
-      Alert.alert('감사합니다!', '피드백이 전송됐어요. 소중한 의견 고마워요 😊', [
-        { text: '확인', onPress: () => router.back() },
-      ]);
+      setSent(true); // 완료 화면 표시
     } catch {
-      Alert.alert('오류', '전송에 실패했어요. 잠시 후 다시 시도해주세요.');
+      setErrorMsg('전송에 실패했어요. 잠시 후 다시 시도해주세요.');
     } finally {
       setSending(false);
     }
+  }
+
+  // ── 전송 완료 화면 ──────────────────────────────────────────────────────
+  if (sent) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <View style={styles.doneBox}>
+          <View style={styles.doneCircle}>
+            <Ionicons name="checkmark" size={48} color="#fff" />
+          </View>
+          <Text style={styles.doneTitle}>피드백이 전송됐어요!</Text>
+          <Text style={styles.doneSub}>소중한 의견 정말 감사합니다 😊</Text>
+          <Pressable
+            onPress={() => router.back()}
+            style={({ pressed }) => [styles.doneBtn, pressed && { opacity: 0.85 }]}
+          >
+            <Text style={styles.doneBtnText}>확인</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -80,20 +102,26 @@ export default function FeedbackScreen() {
           <TextInput
             style={styles.textarea}
             value={content}
-            onChangeText={setContent}
+            onChangeText={(v) => {
+              setContent(v);
+              if (errorMsg) setErrorMsg('');
+            }}
             placeholder="내용을 자유롭게 적어주세요..."
             placeholderTextColor="#bbb"
             multiline
             numberOfLines={6}
             textAlignVertical="top"
+            editable={!sending}
           />
+
+          {errorMsg ? <Text style={styles.error}>{errorMsg}</Text> : null}
 
           <Pressable
             onPress={handleSend}
             disabled={sending}
             style={({ pressed }) => [styles.btn, pressed && { opacity: 0.85 }, sending && { opacity: 0.6 }]}
           >
-            <Ionicons name="send" size={18} color="#fff" />
+            <Ionicons name={sending ? 'hourglass-outline' : 'send'} size={18} color="#fff" />
             <Text style={styles.btnText}>{sending ? '전송 중...' : '피드백 보내기'}</Text>
           </Pressable>
         </ScrollView>
@@ -126,6 +154,7 @@ const styles = StyleSheet.create({
     borderColor: '#eee',
     minHeight: 140,
   },
+  error: { color: '#FF6B6B', fontSize: 13, marginTop: -4 },
   btn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -141,4 +170,25 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+
+  doneBox: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
+  doneCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#00B894',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  doneTitle: { fontSize: 20, fontWeight: '800', color: '#1a1a1a' },
+  doneSub: { fontSize: 14, color: '#888' },
+  doneBtn: {
+    marginTop: 16,
+    backgroundColor: '#FF6B6B',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 48,
+  },
+  doneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

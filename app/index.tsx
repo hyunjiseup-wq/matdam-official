@@ -1,6 +1,7 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -13,10 +14,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import FilterBar from '@/components/FilterBar';
 import RestaurantCard from '@/components/RestaurantCard';
 import SearchBar from '@/components/SearchBar';
+import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const {
     restaurants,
     filteredRestaurants,
@@ -26,6 +29,23 @@ export default function HomeScreen() {
     toggleVisited,
     toggleWishlist,
   } = useRestaurants();
+
+  // 첫 로그인 시 사용법 가이드 1회 자동 노출
+  useEffect(() => {
+    if (!user) return;
+    const key = `matdam_guide_seen_${user.id}`;
+    (async () => {
+      try {
+        const seen = await AsyncStorage.getItem(key);
+        if (!seen) {
+          await AsyncStorage.setItem(key, '1');
+          router.push('/guide' as any);
+        }
+      } catch {
+        // 무시 (가이드는 프로필에서 언제든 다시 볼 수 있음)
+      }
+    })();
+  }, [user?.id]);
 
   if (loading) {
     return (
@@ -101,6 +121,10 @@ export default function HomeScreen() {
                 <Ionicons name="compass" size={18} color="#fff" />
                 <Text style={styles.emptyBtnText}>둘러보기</Text>
               </Pressable>
+              <Pressable style={styles.emptyGuideLink} onPress={() => router.push('/guide' as any)} hitSlop={6}>
+                <Ionicons name="book-outline" size={15} color="#FF7A45" />
+                <Text style={styles.emptyGuideText}>처음이신가요? 사용법 보기</Text>
+              </Pressable>
             </View>
           ) : (
             <View style={styles.emptyBox}>
@@ -163,4 +187,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   emptyBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  emptyGuideLink: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 16 },
+  emptyGuideText: { color: '#FF7A45', fontSize: 13, fontWeight: '600' },
 });

@@ -67,6 +67,7 @@ function RootNavigator() {
               {isAdmin && (
                 <HeaderIcon name="mail-outline" onPress={() => router.push('/admin/feedback' as any)} />
               )}
+              <HeaderIcon name="restaurant-outline" onPress={() => router.push('/discover' as any)} />
               <HeaderIcon name="compass-outline" onPress={() => router.push('/explore' as any)} />
               <HeaderIcon name="person-circle-outline" onPress={() => router.push('/profile' as any)} />
               <HeaderIcon name="chatbubble-outline" onPress={() => router.push('/feedback' as any)} />
@@ -74,6 +75,7 @@ function RootNavigator() {
           ),
         }}
       />
+      <Stack.Screen name="discover" options={{ title: '전체 맛집' }} />
       <Stack.Screen name="explore" options={{ title: '둘러보기' }} />
       <Stack.Screen name="user/[id]" options={{ title: '리스트' }} />
       <Stack.Screen name="profile" options={{ title: '내 프로필' }} />

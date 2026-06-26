@@ -7,13 +7,16 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { inferAreaFromAddress } from '@/constants/filters';
+import { inferAreaFromAddress, inferDistrictFromAddress } from '@/constants/filters';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import {
+  DiscoverItem,
   Feedback,
   FeedbackReply,
   FeedbackStatus,
+  MyInfluence,
+  OwnerRef,
   Profile,
   Restaurant,
   Review,
@@ -53,6 +56,8 @@ interface RestaurantContextType {
   // 둘러보기 / 프로필
   getUsers: () => Promise<Profile[]>;
   getUserRestaurants: (userId: string) => Promise<Restaurant[]>;
+  getDiscoverFeed: () => Promise<DiscoverItem[]>;
+  getMyInfluence: () => Promise<MyInfluence>;
   getProfile: (userId: string) => Promise<Profile | null>;
   updateProfile: (patch: { display_name?: string; bio?: string; sns_url?: string }) => Promise<void>;
   likeList: (ownerId: string) => Promise<void>;
@@ -116,6 +121,18 @@ function fromRow(row: SupabaseRow): Restaurant {
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
+}
+
+// ── 맛집 그룹핑 (같은 맛집 = 이름 + 지역) ─────────────────────────────────────
+
+function normalizeName(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, '');
+}
+
+// "같은 맛집" 판단 키: 정규화된 이름 + 지역(구 단위 우선, 없으면 area)
+function groupKeyOf(r: { name: string; address?: string | null; area?: string | null }): string {
+  const region = inferDistrictFromAddress(r.address ?? undefined) || r.area || '';
+  return `${normalizeName(r.name)}|${region}`;
 }
 
 // ── 초기 시드 (관리자 전용) ───────────────────────────────────────────────────
@@ -493,6 +510,151 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
     return (data as SupabaseRow[]).map(fromRow);
   }, []);
 
+  // ── 전체 맛집 통합 피드 (사용자 구분 없이 한 곳에서) ───────────────────────
+  const getDiscoverFeed = useCallback(async (): Promise<DiscoverItem[]> => {
+    const [rowsRes, profsRes, likesRes, reviewsRes] = await Promise.all([
+      supabase.from('seoul_restaurants').select(RESTAURANT_COLUMNS),
+      supabase.from('profiles').select('id, display_name, is_admin, sns_url'),
+      supabase.from('list_likes').select('owner_id'),
+      supabase.from('restaurant_reviews').select('restaurant_id, rating'),
+    ]);
+
+    // 좋아요 수(사용자 인기) 집계
+    const likeCount = new Map<string, number>();
+    for (const l of (likesRes.data ?? []) as { owner_id: string }[]) {
+      likeCount.set(l.owner_id, (likeCount.get(l.owner_id) ?? 0) + 1);
+    }
+
+    // 프로필 맵
+    type ProfRow = { id: string; display_name: string; is_admin: boolean; sns_url: string | null };
+    const profMap = new Map<string, ProfRow>();
+    for (const p of (profsRes.data ?? []) as ProfRow[]) profMap.set(p.id, p);
+
+    // 맛집별 별점 집계
+    const ratingsByRid = new Map<string, number[]>();
+    for (const rv of (reviewsRes.data ?? []) as { restaurant_id: string; rating: number }[]) {
+      const arr = ratingsByRid.get(rv.restaurant_id) ?? [];
+      arr.push(rv.rating);
+      ratingsByRid.set(rv.restaurant_id, arr);
+    }
+
+    // 그룹핑 (이름 + 지역)
+    const groups = new Map<string, Restaurant[]>();
+    for (const row of (rowsRes.data ?? []) as SupabaseRow[]) {
+      const r = fromRow(row);
+      if (!r.owner_id) continue;
+      const key = groupKeyOf(r);
+      const arr = groups.get(key) ?? [];
+      arr.push(r);
+      groups.set(key, arr);
+    }
+
+    const items: DiscoverItem[] = [];
+    for (const [key, list] of groups) {
+      // 대표 항목: 사진 있는 것 우선, 그다음 우선순위 높은 것
+      const rep = [...list].sort(
+        (a, b) =>
+          Number(!!b.image_url) - Number(!!a.image_url) || b.priority - a.priority,
+      )[0];
+
+      // 사용자별로 묶기
+      const owners = new Map<string, Restaurant[]>();
+      for (const r of list) {
+        const arr = owners.get(r.owner_id) ?? [];
+        arr.push(r);
+        owners.set(r.owner_id, arr);
+      }
+
+      const ownerRefs: OwnerRef[] = [...owners.keys()]
+        .map((oid) => {
+          const p = profMap.get(oid);
+          return {
+            id: oid,
+            display_name: p?.display_name ?? '익명',
+            is_admin: p?.is_admin ?? false,
+            like_count: likeCount.get(oid) ?? 0,
+            sns_url: p?.sns_url ?? undefined,
+          };
+        })
+        .sort((a, b) => b.like_count - a.like_count || a.display_name.localeCompare(b.display_name));
+
+      // 방문한 사용자 수
+      let visitedCount = 0;
+      for (const [, rs] of owners) if (rs.some((r) => r.visited)) visitedCount++;
+
+      // 별점 평균 (그룹 내 모든 맛집 id의 리뷰 합산)
+      let sum = 0;
+      let n = 0;
+      for (const r of list) {
+        const arr = ratingsByRid.get(r.id);
+        if (arr) for (const v of arr) { sum += v; n++; }
+      }
+
+      items.push({
+        key,
+        representativeId: rep.id,
+        name: rep.name,
+        area: rep.area,
+        category: rep.category,
+        address: rep.address,
+        image_url: list.find((r) => r.image_url)?.image_url ?? rep.image_url,
+        map_source: rep.map_source,
+        addedCount: owners.size,
+        visitedCount,
+        avgRating: n ? sum / n : 0,
+        reviewCount: n,
+        topOwners: ownerRefs.slice(0, 3),
+      });
+    }
+
+    return items;
+  }, []);
+
+  // ── 인플루언서 지표 (내 맛집을 몇 명이 담아갔나) ──────────────────────────────
+  const getMyInfluence = useCallback(async (): Promise<MyInfluence> => {
+    if (!userId) return { totalAdoptions: 0, adopterCount: 0, topRestaurants: [] };
+    const { data: rows } = await supabase
+      .from('seoul_restaurants')
+      .select('owner_id, name, area, address');
+
+    type Row = { owner_id: string | null; name: string; area: string | null; address: string | null };
+    const all = (rows ?? []) as Row[];
+
+    // 내 맛집 그룹 키 모음
+    const myKeys = new Map<string, { name: string; area?: string }>();
+    for (const r of all) {
+      if (r.owner_id !== userId) continue;
+      myKeys.set(groupKeyOf(r), { name: r.name, area: r.area ?? undefined });
+    }
+
+    // 같은 키를 가진 '다른 사용자' 모으기
+    const othersByKey = new Map<string, Set<string>>();
+    for (const r of all) {
+      if (!r.owner_id || r.owner_id === userId) continue;
+      const k = groupKeyOf(r);
+      if (!myKeys.has(k)) continue;
+      const set = othersByKey.get(k) ?? new Set<string>();
+      set.add(r.owner_id);
+      othersByKey.set(k, set);
+    }
+
+    const adopters = new Set<string>();
+    let totalAdoptions = 0;
+    const top: { name: string; area?: string; othersCount: number }[] = [];
+    for (const [k, info] of myKeys) {
+      const set = othersByKey.get(k);
+      const c = set ? set.size : 0;
+      if (c > 0) {
+        top.push({ ...info, othersCount: c });
+        totalAdoptions += c;
+        set!.forEach((id) => adopters.add(id));
+      }
+    }
+    top.sort((a, b) => b.othersCount - a.othersCount);
+
+    return { totalAdoptions, adopterCount: adopters.size, topRestaurants: top.slice(0, 5) };
+  }, [userId]);
+
   const getProfile = useCallback(async (uid: string): Promise<Profile | null> => {
     const { data } = await supabase.from('profiles').select('*').eq('id', uid).single();
     return (data as Profile) ?? null;
@@ -701,6 +863,8 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       uploadPhoto,
       getUsers,
       getUserRestaurants,
+      getDiscoverFeed,
+      getMyInfluence,
       getProfile,
       updateProfile,
       likeList,
@@ -739,6 +903,8 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       uploadPhoto,
       getUsers,
       getUserRestaurants,
+      getDiscoverFeed,
+      getMyInfluence,
       getProfile,
       updateProfile,
       likeList,

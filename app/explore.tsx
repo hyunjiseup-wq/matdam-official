@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
+import * as Linking from 'expo-linking';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -94,6 +95,19 @@ export default function ExploreScreen() {
                 <Text style={styles.userMeta}>
                   맛집 {item.count ?? 0} · 👀 {item.view_count ?? 0}
                 </Text>
+                {item.sns_url ? (
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      Linking.openURL(item.sns_url!).catch(() => {});
+                    }}
+                    style={styles.snsRow}
+                    hitSlop={4}
+                  >
+                    <Ionicons name="logo-instagram" size={13} color="#E1306C" />
+                    <Text style={styles.snsText} numberOfLines={1}>{item.sns_url}</Text>
+                  </Pressable>
+                ) : null}
               </View>
 
               {/* 좋아요 */}
@@ -170,6 +184,8 @@ const styles = StyleSheet.create({
   adminBadge: { backgroundColor: '#FFE8E8', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
   adminBadgeText: { fontSize: 11, color: '#FF7A45', fontWeight: '700' },
   userMeta: { fontSize: 13, color: '#999', marginTop: 2 },
+  snsRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 },
+  snsText: { fontSize: 12, color: '#E1306C', maxWidth: 180 },
   likeBtn: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, minWidth: 36 },
   likeCount: { fontSize: 12, color: '#bbb', fontWeight: '600', marginTop: 1 },
   emptyBox: { alignItems: 'center', paddingTop: 60 },

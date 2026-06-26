@@ -16,30 +16,33 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { notify } from '@/lib/confirm';
 import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
+import { MyInfluence } from '@/types/restaurant';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, displayName } = useAuth();
-  const { getProfile, updateProfile } = useRestaurants();
+  const { getProfile, updateProfile, getMyInfluence } = useRestaurants();
 
   const [name, setName] = useState(displayName);
   const [bio, setBio] = useState('');
   const [snsUrl, setSnsUrl] = useState('');
+  const [influence, setInfluence] = useState<MyInfluence | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     (async () => {
       if (!user) return;
-      const p = await getProfile(user.id);
+      const [p, inf] = await Promise.all([getProfile(user.id), getMyInfluence()]);
       if (p) {
         setName(p.display_name ?? displayName);
         setBio(p.bio ?? '');
         setSnsUrl(p.sns_url ?? '');
       }
+      setInfluence(inf);
       setLoading(false);
     })();
-  }, [user, getProfile]);
+  }, [user, getProfile, getMyInfluence]);
 
   async function handleSave() {
     if (!name.trim()) {
@@ -75,6 +78,41 @@ export default function ProfileScreen() {
               <Text style={styles.avatarText}>{(name[0] ?? '?').toUpperCase()}</Text>
             </View>
           </View>
+
+          {/* 인플루언서 지표 */}
+          {influence && (
+            <View style={styles.influCard}>
+              <Text style={styles.influTitle}>📊 내 영향력</Text>
+              <View style={styles.influStats}>
+                <View style={styles.influStat}>
+                  <Text style={styles.influNum}>{influence.adopterCount}</Text>
+                  <Text style={styles.influLabel}>명이 담아감</Text>
+                </View>
+                <View style={styles.influDivider} />
+                <View style={styles.influStat}>
+                  <Text style={styles.influNum}>{influence.totalAdoptions}</Text>
+                  <Text style={styles.influLabel}>총 담긴 횟수</Text>
+                </View>
+              </View>
+              {influence.topRestaurants.length > 0 ? (
+                <View style={styles.influList}>
+                  <Text style={styles.influListTitle}>🔥 가장 많이 담긴 내 맛집</Text>
+                  {influence.topRestaurants.map((r, i) => (
+                    <View key={i} style={styles.influRow}>
+                      <Text style={styles.influRank}>{i + 1}</Text>
+                      <Text style={styles.influName} numberOfLines={1}>
+                        {r.name}
+                        {r.area ? <Text style={styles.influArea}>  📍{r.area}</Text> : null}
+                      </Text>
+                      <Text style={styles.influCount}>{r.othersCount}명</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.influEmpty}>아직 담아간 사람이 없어요. 리스트를 공유해보세요! 🔗</Text>
+              )}
+            </View>
+          )}
 
           <Text style={styles.label}>닉네임</Text>
           <TextInput
@@ -143,6 +181,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarText: { color: '#fff', fontSize: 34, fontWeight: '800' },
+  influCard: {
+    backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 8,
+    borderWidth: 1, borderColor: '#FFE4D6',
+  },
+  influTitle: { fontSize: 15, fontWeight: '800', color: '#FF7A45', marginBottom: 12 },
+  influStats: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  influStat: { flex: 1, alignItems: 'center' },
+  influDivider: { width: 1, height: 36, backgroundColor: '#eee' },
+  influNum: { fontSize: 26, fontWeight: '800', color: '#1a1a1a' },
+  influLabel: { fontSize: 12, color: '#999', marginTop: 2 },
+  influList: { marginTop: 14, borderTopWidth: 1, borderTopColor: '#f5f5f5', paddingTop: 12, gap: 8 },
+  influListTitle: { fontSize: 13, fontWeight: '700', color: '#666', marginBottom: 2 },
+  influRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  influRank: {
+    fontSize: 12, fontWeight: '800', color: '#FF7A45', width: 18, textAlign: 'center',
+  },
+  influName: { flex: 1, fontSize: 14, color: '#333' },
+  influArea: { fontSize: 12, color: '#aaa' },
+  influCount: { fontSize: 13, fontWeight: '700', color: '#FF7A45' },
+  influEmpty: { fontSize: 13, color: '#aaa', marginTop: 12, textAlign: 'center', lineHeight: 18 },
   label: { fontSize: 13, fontWeight: '600', color: '#555', marginBottom: 6, marginTop: 14 },
   input: {
     backgroundColor: '#fff',

@@ -73,3 +73,37 @@ export interface FilterState {
   categoryFilter: string | null;
   visitedFilter: VisitedFilter;
 }
+
+// ── 전체 맛집 둘러보기 (사용자 통합 피드) ─────────────────────────────────────
+
+export interface OwnerRef {
+  id: string;
+  display_name: string;
+  is_admin: boolean;
+  like_count: number;
+  sns_url?: string;
+}
+
+export interface DiscoverItem {
+  key: string;             // 그룹 키 (이름+지역)
+  representativeId: string; // 상세로 이동할 대표 맛집 id
+  name: string;
+  area?: string;
+  category?: string;
+  address?: string;
+  image_url?: string;
+  map_source?: MapSource;
+  addedCount: number;      // 이 맛집을 담은 사용자 수 (인기)
+  visitedCount: number;    // 방문 체크한 사용자 수
+  avgRating: number;       // 리뷰 평균 별점 (없으면 0)
+  reviewCount: number;     // 리뷰 수
+  topOwners: OwnerRef[];   // 인기순 상위 3명
+}
+
+export type DiscoverSort = 'popular' | 'rating' | 'visited';
+
+export interface MyInfluence {
+  totalAdoptions: number;  // 내 맛집을 담아간 총 횟수
+  adopterCount: number;    // 내 맛집을 담은 고유 사용자 수
+  topRestaurants: { name: string; area?: string; othersCount: number }[]; // 가장 많이 담긴 내 맛집
+}

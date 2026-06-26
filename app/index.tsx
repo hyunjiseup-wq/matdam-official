@@ -54,6 +54,18 @@ export default function HomeScreen() {
         )}
         ListHeaderComponent={
           <>
+            {/* 전체 맛집 배너 */}
+            <Pressable style={styles.discoverBanner} onPress={() => router.push('/discover' as any)}>
+              <View style={styles.exploreLeft}>
+                <Ionicons name="restaurant" size={22} color="#fff" />
+                <View>
+                  <Text style={styles.exploreTitle}>전체 맛집 둘러보기 🔥</Text>
+                  <Text style={styles.discoverSub}>인기순·별점순·방문순으로 한눈에</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#fff" />
+            </Pressable>
+
             {/* 둘러보기 배너 */}
             <Pressable style={styles.exploreBanner} onPress={() => router.push('/explore' as any)}>
               <View style={styles.exploreLeft}>
@@ -117,13 +129,23 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   loadingText: { fontSize: 14, color: '#aaa' },
   list: { paddingBottom: 100 },
+  discoverBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FF7A45',
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
+    borderRadius: 14,
+    padding: 16,
+  },
   exploreBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#6C5CE7',
     marginHorizontal: 16,
-    marginTop: 12,
     marginBottom: 4,
     borderRadius: 14,
     padding: 16,
@@ -131,6 +153,7 @@ const styles = StyleSheet.create({
   exploreLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   exploreTitle: { color: '#fff', fontSize: 15, fontWeight: '700' },
   exploreSub: { color: '#E0DBFF', fontSize: 12, marginTop: 2 },
+  discoverSub: { color: '#FFE4D6', fontSize: 12, marginTop: 2 },
   countRow: { paddingHorizontal: 16, paddingBottom: 4, paddingTop: 2 },
   countText: { fontSize: 12, color: '#aaa' },
   emptyBox: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 32, gap: 8 },

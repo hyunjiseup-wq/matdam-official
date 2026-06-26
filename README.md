@@ -33,6 +33,7 @@ React Native(Expo)로 만든 **개인별 맛집 리스트 공유 앱**입니다.
 | 📂 개인 리스트 | 사용자마다 자기만의 맛집 리스트 (추가·수정·삭제는 본인 것만) |
 | ❤️ 가고싶음 / ✅ 방문함 | 위시리스트와 방문 기록이 완전히 독립, 따로 체크 |
 | 📷 음식 사진 | **사진 직접 업로드**(Supabase Storage) 또는 URL → 썸네일 + 대표 이미지 |
+| 🖼️ 대표 사진 자동 연동 | 기존 등록 맛집 **300곳+에 구글 Places 실제 가게 사진** 자동 연동 (백필 스크립트) |
 | 🗺️ 지도 출처 | **네이버/구글 선택** → 카드·상세에 N/G 배지, 출처에 맞는 지도로 열기 |
 | 📍 지역 계층 필터 | **전체 → 시/도 → 구** 단계 선택 (전국 확장 대비, 주소 자동 파싱) |
 | 🔎 검색 & 필터 | 이름·지역·메모·주소 검색 / 카테고리·상태 필터 |
@@ -88,6 +89,8 @@ React Native(Expo)로 만든 **개인별 맛집 리스트 공유 앱**입니다.
 │   ├── schema.sql               # 초기 스키마
 │   ├── migration.sql            # 개인 리스트 모델 마이그레이션
 │   └── migration2.sql           # 지도출처·좋아요·프로필·피드백답글·Storage
+├── scripts/
+│   └── backfill-photos.mjs      # 대표 사진 백필 (구글 Places → Storage)
 └── seoul_restaurant_app_starter/restaurants_from_json.json  # 시드 데이터 (311곳)
 ```
 
@@ -163,6 +166,24 @@ interface Restaurant {
 
 기존에 네이버 지도에 저장해 둔 맛집 목록을 `seoul_restaurant_app_starter/restaurants_from_json.json`(311곳)으로 받아 시드합니다.
 **관리자**가 처음 로그인할 때 테이블이 비어 있으면 자동으로 시드되고, 주인 없는 항목은 관리자 소유로 귀속됩니다.
+
+### 📸 대표 사진 백필
+
+사진이 없는 맛집(`image_url IS NULL`)에 **구글 Places(신규) API**로 실제 가게 사진을 한 번에 채웁니다.
+검색된 사진은 Supabase Storage(`restaurant-photos/google/<id>`)에 저장되고 `image_url`이 공개 URL로 업데이트됩니다.
+
+```bash
+# PowerShell — 값은 작은따옴표로 감싸기
+$env:SUPABASE_URL='https://<project>.supabase.co'
+$env:SUPABASE_SERVICE_ROLE_KEY='<service_role 키>'   # 1회용, 절대 커밋 금지
+$env:GOOGLE_API_KEY='<구글 Places API 키>'
+node scripts/backfill-photos.mjs        # 사진 없는 곳만 처리 (재실행 안전)
+node scripts/backfill-photos.mjs 10     # 앞 10곳만 테스트
+```
+
+> 312곳 중 **303곳**에 실제 사진 적용 완료. 구글에 등록되지 않은 9곳만 미적용.
+> `image_url`이 비어 있는 항목만 대상이라 재실행해도 기존 사진을 덮어쓰지 않습니다.
+> ⚠️ `service_role` 키는 RLS를 우회하므로 **1회용 로컬 실행 전용**이며, 사용 후 재발급을 권장합니다.
 
 ---
 

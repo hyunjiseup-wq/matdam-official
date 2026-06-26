@@ -16,7 +16,7 @@ import { Feedback, FeedbackStatus } from '@/types/restaurant';
 const TYPE_LABEL: Record<string, { label: string; color: string; bg: string }> = {
   general: { label: '💬 일반', color: '#6C5CE7', bg: '#F0EEFF' },
   feature: { label: '✨ 기능', color: '#00B894', bg: '#E8FFF9' },
-  bug: { label: '🐛 버그', color: '#FF6B6B', bg: '#FFE8E8' },
+  bug: { label: '🐛 버그', color: '#FF7A45', bg: '#FFE8E8' },
   data: { label: '📍 정보', color: '#E1A100', bg: '#FFF8E8' },
 };
 
@@ -51,7 +51,7 @@ export default function MyFeedbackScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#FF6B6B" />
+        <ActivityIndicator size="large" color="#FF7A45" />
       </View>
     );
   }
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#FF7A45',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,

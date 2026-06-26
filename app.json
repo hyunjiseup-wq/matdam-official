@@ -15,7 +15,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#FF6B6B"
+        "backgroundColor": "#FF7A45"
       },
       "package": "com.example.seoulrestaurantlist"
     },

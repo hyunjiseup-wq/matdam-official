@@ -17,7 +17,7 @@ import { useRestaurants } from '@/context/RestaurantContext';
 const TYPES = [
   { value: 'general', label: '💬 일반 피드백', color: '#6C5CE7' },
   { value: 'feature', label: '✨ 기능 요청', color: '#00B894' },
-  { value: 'bug', label: '🐛 버그 신고', color: '#FF6B6B' },
+  { value: 'bug', label: '🐛 버그 신고', color: '#FF7A45' },
   { value: 'data', label: '📍 맛집 정보 수정', color: '#FDCB6E' },
 ];
 
@@ -163,16 +163,16 @@ const styles = StyleSheet.create({
     borderColor: '#eee',
     minHeight: 140,
   },
-  error: { color: '#FF6B6B', fontSize: 13, marginTop: -4 },
+  error: { color: '#FF7A45', fontSize: 13, marginTop: -4 },
   btn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#FF7A45',
     borderRadius: 14,
     paddingVertical: 16,
-    shadowColor: '#FF6B6B',
+    shadowColor: '#FF7A45',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
   myFbText: { color: '#6C5CE7', fontSize: 13, fontWeight: '600' },
   doneBtn: {
     marginTop: 16,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#FF7A45',
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 48,

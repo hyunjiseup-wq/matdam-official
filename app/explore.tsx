@@ -109,9 +109,9 @@ export default function ExploreScreen() {
                 <Ionicons
                   name={item.liked ? 'heart' : 'heart-outline'}
                   size={20}
-                  color={item.liked ? '#FF6B6B' : '#ccc'}
+                  color={item.liked ? '#FF7A45' : '#ccc'}
                 />
-                <Text style={[styles.likeCount, item.liked && { color: '#FF6B6B' }]}>
+                <Text style={[styles.likeCount, item.liked && { color: '#FF7A45' }]}>
                   {item.like_count ?? 0}
                 </Text>
               </Pressable>
@@ -161,14 +161,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarAdmin: { backgroundColor: '#FF6B6B' },
+  avatarAdmin: { backgroundColor: '#FF7A45' },
   avatarText: { color: '#fff', fontSize: 18, fontWeight: '700' },
   userInfo: { flex: 1 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   userName: { fontSize: 16, fontWeight: '700', color: '#1a1a1a' },
   meTag: { fontSize: 13, color: '#aaa', fontWeight: '500' },
   adminBadge: { backgroundColor: '#FFE8E8', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
-  adminBadgeText: { fontSize: 11, color: '#FF6B6B', fontWeight: '700' },
+  adminBadgeText: { fontSize: 11, color: '#FF7A45', fontWeight: '700' },
   userMeta: { fontSize: 13, color: '#999', marginTop: 2 },
   likeBtn: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, minWidth: 36 },
   likeCount: { fontSize: 12, color: '#bbb', fontWeight: '600', marginTop: 1 },

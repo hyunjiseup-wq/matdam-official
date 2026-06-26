@@ -176,7 +176,7 @@ export default function UserListScreen() {
                       <Ionicons
                         name={owner.liked ? 'heart' : 'heart-outline'}
                         size={18}
-                        color={owner.liked ? '#fff' : '#FF6B6B'}
+                        color={owner.liked ? '#fff' : '#FF7A45'}
                       />
                       <Text style={[styles.likeBtnText, owner.liked && { color: '#fff' }]}>
                         좋아요 {owner.like_count ?? 0}
@@ -232,12 +232,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarAdmin: { backgroundColor: '#FF6B6B' },
+  avatarAdmin: { backgroundColor: '#FF7A45' },
   avatarText: { color: '#fff', fontSize: 22, fontWeight: '700' },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   ownerName: { fontSize: 18, fontWeight: '800', color: '#1a1a1a' },
   adminBadge: { backgroundColor: '#FFE8E8', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
-  adminBadgeText: { fontSize: 11, color: '#FF6B6B', fontWeight: '700' },
+  adminBadgeText: { fontSize: 11, color: '#FF7A45', fontWeight: '700' },
   stats: { fontSize: 13, color: '#999', marginTop: 3 },
   bio: { fontSize: 14, color: '#555', lineHeight: 20 },
   snsBtn: {
@@ -260,11 +260,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#FF6B6B',
+    borderColor: '#FF7A45',
     backgroundColor: '#fff',
   },
-  likeBtnActive: { backgroundColor: '#FF6B6B' },
-  likeBtnText: { color: '#FF6B6B', fontSize: 14, fontWeight: '700' },
+  likeBtnActive: { backgroundColor: '#FF7A45' },
+  likeBtnText: { color: '#FF7A45', fontSize: 14, fontWeight: '700' },
   shareBtn: {
     flex: 1,
     flexDirection: 'row',

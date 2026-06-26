@@ -16,7 +16,7 @@ interface ChipProps {
   activeColor?: string;
 }
 
-function Chip({ label, active, onPress, activeColor = '#FF6B6B' }: ChipProps) {
+function Chip({ label, active, onPress, activeColor = '#FF7A45' }: ChipProps) {
   return (
     <Pressable
       onPress={onPress}
@@ -29,7 +29,7 @@ function Chip({ label, active, onPress, activeColor = '#FF6B6B' }: ChipProps) {
 
 const STATUS_OPTIONS: { label: string; value: VisitedFilter; color: string }[] = [
   { label: '전체', value: 'all', color: '#888' },
-  { label: '❤️ 가고싶음', value: 'wishlist', color: '#FF6B6B' },
+  { label: '❤️ 가고싶음', value: 'wishlist', color: '#FF7A45' },
   { label: '✓ 방문함', value: 'visited', color: '#00B894' },
 ];
 

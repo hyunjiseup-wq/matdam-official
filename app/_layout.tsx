@@ -33,7 +33,7 @@ function RootNavigator() {
   if (loading) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' }}>
-        <ActivityIndicator size="large" color="#FF6B6B" />
+        <ActivityIndicator size="large" color="#FF7A45" />
       </View>
     );
   }
@@ -41,7 +41,7 @@ function RootNavigator() {
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: '#FF6B6B' },
+        headerStyle: { backgroundColor: '#FF7A45' },
         headerTintColor: '#fff',
         headerTitleStyle: { fontWeight: '700' },
         contentStyle: { backgroundColor: '#F5F5F5' },

@@ -63,7 +63,7 @@ export default function FeedbackThreadScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#FF6B6B" />
+        <ActivityIndicator size="large" color="#FF7A45" />
       </View>
     );
   }
@@ -153,8 +153,8 @@ export default function FeedbackThreadScreen() {
               <Pressable onPress={() => changeStatus('open')} style={[styles.adminBtn, { borderColor: '#E1A100' }]}>
                 <Text style={[styles.adminBtnText, { color: '#E1A100' }]}>다시열기</Text>
               </Pressable>
-              <Pressable onPress={handleDelete} style={[styles.adminBtn, { borderColor: '#FF6B6B' }]}>
-                <Ionicons name="trash-outline" size={14} color="#FF6B6B" />
+              <Pressable onPress={handleDelete} style={[styles.adminBtn, { borderColor: '#FF7A45' }]}>
+                <Ionicons name="trash-outline" size={14} color="#FF7A45" />
               </Pressable>
             </View>
           )}
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#FF7A45',
     alignItems: 'center',
     justifyContent: 'center',
   },

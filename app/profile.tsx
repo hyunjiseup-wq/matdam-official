@@ -61,7 +61,7 @@ export default function ProfileScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#FF6B6B" />
+        <ActivityIndicator size="large" color="#FF7A45" />
       </View>
     );
   }
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#FF7A45',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#FF7A45',
     borderRadius: 14,
     paddingVertical: 16,
     marginTop: 24,

@@ -49,7 +49,7 @@ function ChipSelector({
   options,
   value,
   onChange,
-  color = '#FF6B6B',
+  color = '#FF7A45',
 }: {
   options: string[];
   value: string;
@@ -332,7 +332,7 @@ export default function FormScreen() {
               </Pressable>
               {form.image_url ? (
                 <Pressable onPress={() => set('image_url', '')} style={styles.removePhotoBtn}>
-                  <Ionicons name="trash-outline" size={16} color="#FF6B6B" />
+                  <Ionicons name="trash-outline" size={16} color="#FF7A45" />
                   <Text style={styles.removePhotoText}>제거</Text>
                 </Pressable>
               ) : null}
@@ -387,7 +387,7 @@ export default function FormScreen() {
             <Switch
               value={form.wishlist}
               onValueChange={(v) => set('wishlist', v)}
-              trackColor={{ false: '#ddd', true: '#FF6B6B' }}
+              trackColor={{ false: '#ddd', true: '#FF7A45' }}
               thumbColor="#fff"
             />
           </View>
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   content: { padding: 16, gap: 4, paddingBottom: 40 },
   field: { marginBottom: 16 },
   label: { fontSize: 13, fontWeight: '600', color: '#555', marginBottom: 6 },
-  required: { color: '#FF6B6B' },
+  required: { color: '#FF7A45' },
   input: {
     backgroundColor: '#fff',
     borderRadius: 10,
@@ -466,11 +466,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#FF7A45',
     borderRadius: 14,
     paddingVertical: 16,
     marginTop: 8,
-    shadowColor: '#FF6B6B',
+    shadowColor: '#FF7A45',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -507,5 +507,5 @@ const styles = StyleSheet.create({
   },
   uploadBtnText: { color: '#6C5CE7', fontSize: 14, fontWeight: '700' },
   removePhotoBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 8 },
-  removePhotoText: { color: '#FF6B6B', fontSize: 13, fontWeight: '600' },
+  removePhotoText: { color: '#FF7A45', fontSize: 13, fontWeight: '600' },
 });

@@ -85,7 +85,7 @@ export default function DetailScreen() {
   if (loadingR) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#FF6B6B" />
+        <ActivityIndicator size="large" color="#FF7A45" />
       </View>
     );
   }
@@ -295,7 +295,7 @@ export default function DetailScreen() {
           <View style={styles.reviewTitleRow}>
             <Text style={styles.reviewTitle}>리뷰 {reviews.length > 0 ? `(${reviews.length})` : ''}</Text>
             <Pressable onPress={() => router.push(`/review/${id}` as any)} style={styles.addReviewBtn}>
-              <Ionicons name="create-outline" size={16} color="#FF6B6B" />
+              <Ionicons name="create-outline" size={16} color="#FF7A45" />
               <Text style={styles.addReviewText}>리뷰 작성</Text>
             </Pressable>
           </View>
@@ -316,7 +316,7 @@ export default function DetailScreen() {
                     <Stars count={review.rating} size={14} />
                     {isAdmin && (
                       <Pressable onPress={() => handleDeleteReview(review.id)} hitSlop={6}>
-                        <Ionicons name="trash-outline" size={16} color="#FF6B6B" />
+                        <Ionicons name="trash-outline" size={16} color="#FF7A45" />
                       </Pressable>
                     )}
                   </View>
@@ -345,7 +345,7 @@ export default function DetailScreen() {
               disabled={deleting}
               style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.85 }]}
             >
-              <Ionicons name="trash-outline" size={18} color="#FF6B6B" />
+              <Ionicons name="trash-outline" size={18} color="#FF7A45" />
               <Text style={styles.deleteBtnText}>삭제</Text>
             </Pressable>
           </View>
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
   content: { padding: 16, gap: 12, paddingBottom: 40 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   notFound: { fontSize: 17, color: '#555' },
-  backBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#FF6B6B', borderRadius: 10 },
+  backBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#FF7A45', borderRadius: 10 },
   backBtnText: { color: '#fff', fontWeight: '600' },
 
   heroImage: { width: '100%', height: 200, borderRadius: 16, backgroundColor: '#f0f0f0' },
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: '#f5f5f5',
   },
-  wishlistActive: { backgroundColor: '#FF6B6B' },
+  wishlistActive: { backgroundColor: '#FF7A45' },
   visitedActive: { backgroundColor: '#00B894' },
   stateToggleText: { fontSize: 14, color: '#888', fontWeight: '500' },
   stateToggleTextActive: { color: '#fff' },
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#FF7A45',
     borderRadius: 12,
     paddingVertical: 14,
   },
@@ -470,13 +470,13 @@ const styles = StyleSheet.create({
   reviewTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   reviewTitle: { fontSize: 16, fontWeight: '700', color: '#1a1a1a' },
   addReviewBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  addReviewText: { fontSize: 14, color: '#FF6B6B', fontWeight: '600' },
+  addReviewText: { fontSize: 14, color: '#FF7A45', fontWeight: '600' },
   reviewEmpty: { fontSize: 14, color: '#bbb', textAlign: 'center', paddingVertical: 16 },
 
   reviewCard: { backgroundColor: '#f8f8f8', borderRadius: 12, padding: 12, gap: 6 },
   reviewHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   reviewUser: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#FF6B6B', alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#FF7A45', alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   reviewName: { fontSize: 14, fontWeight: '600', color: '#333' },
   reviewContent: { fontSize: 14, color: '#555', lineHeight: 20 },
@@ -506,8 +506,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 14,
     borderWidth: 1.5,
-    borderColor: '#FF6B6B',
+    borderColor: '#FF7A45',
   },
-  deleteBtnText: { color: '#FF6B6B', fontSize: 15, fontWeight: '700' },
+  deleteBtnText: { color: '#FF7A45', fontSize: 15, fontWeight: '700' },
   timestamp: { textAlign: 'center', fontSize: 12, color: '#ccc' },
 });

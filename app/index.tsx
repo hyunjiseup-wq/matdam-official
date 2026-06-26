@@ -30,7 +30,7 @@ export default function HomeScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#FF6B6B" />
+        <ActivityIndicator size="large" color="#FF7A45" />
         <Text style={styles.loadingText}>맛집 불러오는 중...</Text>
       </View>
     );
@@ -155,10 +155,10 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#FF7A45',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#FF6B6B',
+    shadowColor: '#FF7A45',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,

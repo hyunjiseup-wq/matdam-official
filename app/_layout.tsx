@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import React, { useEffect } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import BottomTabBar from '@/components/BottomTabBar';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
@@ -40,7 +40,8 @@ function RootNavigator() {
   }
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={styles.root}>
+    <View style={styles.appShell}>
     <Stack
       screenOptions={{
         headerStyle: { backgroundColor: '#FF7A45' },
@@ -95,8 +96,33 @@ function RootNavigator() {
     </Stack>
     <BottomTabBar />
     </View>
+    </View>
   );
 }
+
+// PC 웹에서 앱을 가운데로 모아 모바일 폭으로 보여준다(인스타 웹 느낌).
+// 모바일/네이티브 앱에는 영향 없음(flex:1 그대로).
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    ...Platform.select({
+      web: { alignItems: 'center', backgroundColor: '#E9EAED' } as any,
+      default: {},
+    }),
+  },
+  appShell: {
+    flex: 1,
+    width: '100%',
+    ...Platform.select({
+      web: {
+        maxWidth: 600,
+        backgroundColor: '#F5F5F5',
+        boxShadow: '0 0 24px rgba(0,0,0,0.08)',
+      } as any,
+      default: {},
+    }),
+  },
+});
 
 export default function RootLayout() {
   return (

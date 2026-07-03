@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ChipRow from '@/components/ChipRow';
-import { AREAS, CATEGORIES, inferAreaFromAddress } from '@/constants/filters';
+import { AREAS, CATEGORIES, PRICE_RANGES, inferAreaFromAddress } from '@/constants/filters';
 import { notify } from '@/lib/confirm';
 import { extractPlace } from '@/lib/placeExtract';
 import { useRestaurants } from '@/context/RestaurantContext';
@@ -103,6 +103,7 @@ type FormData = {
   image_url: string;
   tagsInput: string;
   memo: string;
+  price_range: string;
   visited: boolean;
   wishlist: boolean;
   priority: number;
@@ -126,6 +127,7 @@ export default function FormScreen() {
     image_url: '',
     tagsInput: '',
     memo: '',
+    price_range: '',
     visited: false,
     wishlist: false,
     priority: 3,
@@ -147,6 +149,7 @@ export default function FormScreen() {
         image_url: existing.image_url ?? '',
         tagsInput: (existing.tags ?? []).join(', '),
         memo: existing.memo ?? '',
+        price_range: existing.price_range ?? '',
         visited: existing.visited,
         wishlist: existing.wishlist,
         priority: existing.priority,
@@ -176,6 +179,7 @@ export default function FormScreen() {
         image_url: d.image_url || prev.image_url,
         naver_map_url: d.naver_map_url || url,
         map_source: d.map_source || prev.map_source,
+        price_range: d.price_range || prev.price_range,
       }));
       notify(
         d.ai ? '자동 인식 완료 ✨' : '기본 정보만 채웠어요',
@@ -236,6 +240,7 @@ export default function FormScreen() {
       image_url: form.image_url.trim() || undefined,
       tags: tags.length > 0 ? tags : undefined,
       memo: form.memo.trim() || undefined,
+      price_range: form.price_range || undefined,
       visited: form.visited,
       wishlist: form.wishlist,
       priority: form.priority,
@@ -420,6 +425,16 @@ export default function FormScreen() {
               placeholderTextColor="#ccc"
               autoCapitalize="none"
               keyboardType="url"
+            />
+          </Field>
+
+          {/* 가격대 */}
+          <Field label="가격대 (1인 기준)">
+            <ChipSelector
+              options={PRICE_RANGES}
+              value={form.price_range}
+              onChange={(v) => set('price_range', v)}
+              color="#00B894"
             />
           </Field>
 

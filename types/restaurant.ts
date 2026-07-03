@@ -12,6 +12,7 @@ export interface Restaurant {
   image_url?: string;
   tags?: string[];
   memo?: string;
+  price_range?: string; // 만원 이하 | 1~2만원 | 2~4만원 | 4만원 이상
   visited: boolean;
   wishlist: boolean;
   priority: number;
@@ -96,6 +97,7 @@ export interface DiscoverItem {
   address?: string;
   image_url?: string;
   map_source?: MapSource;
+  price_range?: string;
   addedCount: number;      // 이 맛집을 담은 사용자 수 (인기)
   visitedCount: number;    // 방문 체크한 사용자 수
   avgRating: number;       // 리뷰 평균 별점 (없으면 0)

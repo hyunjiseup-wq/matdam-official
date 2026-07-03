@@ -14,6 +14,7 @@ export interface ExtractedPlace {
   image_url: string;
   naver_map_url: string;
   map_source?: MapSource;
+  price_range?: string; // 메뉴 가격 중앙값으로 추정 (네이버만)
   ai: boolean; // AI로 구조화됐는지 (false면 og태그만으로 채운 것)
 }
 

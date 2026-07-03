@@ -57,6 +57,7 @@ module.exports = async (req, res) => {
             image_url: parsed.image_url,
             naver_map_url: finalUrl,
             map_source: 'naver',
+            price_range: parsed.price_range,
             ai: false,
           });
         }
@@ -173,7 +174,26 @@ async function parseNaverByPlaceId(id) {
     address: roadAddress || address,
     naverCategory,
     image_url: firstPlaceImage(html),
+    price_range: estimatePriceRange(html),
   };
+}
+
+// 메뉴 가격들의 중앙값으로 가격대 추정 (없으면 빈 문자열)
+function estimatePriceRange(html) {
+  const prices = [];
+  const re = /"price":"(\d{3,7})"/g;
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    const v = parseInt(m[1], 10);
+    if (v >= 1000 && v <= 500000) prices.push(v);
+  }
+  if (prices.length === 0) return '';
+  prices.sort((a, b) => a - b);
+  const median = prices[Math.floor(prices.length / 2)];
+  if (median <= 10000) return '만원 이하';
+  if (median <= 20000) return '1~2만원';
+  if (median <= 40000) return '2~4만원';
+  return '4만원 이상';
 }
 
 // 대표 사진: search.pstatic.net 을 거치는 phinf 실제 사진 URL

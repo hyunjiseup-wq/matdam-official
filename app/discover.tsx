@@ -90,7 +90,7 @@ function DiscoverCard({
   onSave: () => void;
   saved: boolean;
 }) {
-  const sub = [item.area, item.category].filter(Boolean).join(' · ');
+  const sub = [item.area, item.category, item.price_range ? `💰 ${item.price_range}` : ''].filter(Boolean).join(' · ');
   return (
     <Pressable onPress={onOpen} style={({ pressed }) => [styles.card, pressed && { opacity: 0.96 }]}>
       {/* 대표 사진 */}

@@ -36,6 +36,9 @@ export const CATEGORY_BG: Record<string, string> = {
   '마트/편의점': '#F5F5F5',
 };
 
+// 가격대 밴드 (폼 선택 + 자동인식 추정 공용)
+export const PRICE_RANGES = ['만원 이하', '1~2만원', '2~4만원', '4만원 이상'];
+
 const DISTRICT_TO_AREA: Record<string, string> = {
   '성동구': '성수',
   '마포구': '홍대',

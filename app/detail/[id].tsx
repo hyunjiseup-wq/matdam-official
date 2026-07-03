@@ -102,7 +102,7 @@ export default function DetailScreen() {
   }
 
   const isMine = restaurant.owner_id === user?.id;
-  const { name, area, category, address, naver_map_url, map_source, image_url, tags, memo, visited, wishlist, priority } = restaurant;
+  const { name, area, category, address, naver_map_url, map_source, image_url, tags, memo, price_range, visited, wishlist, priority } = restaurant;
   const catColor = category ? CATEGORY_COLORS[category] ?? '#888' : '#888';
   const catBg = category ? CATEGORY_BG[category] ?? '#f5f5f5' : '#f5f5f5';
   const isGoogle = map_source === 'google';
@@ -171,6 +171,11 @@ export default function DetailScreen() {
             {area && (
               <View style={styles.areaBadge}>
                 <Text style={styles.areaBadgeText}>📍 {area}</Text>
+              </View>
+            )}
+            {price_range && (
+              <View style={[styles.areaBadge, { backgroundColor: '#E8FFF9' }]}>
+                <Text style={[styles.areaBadgeText, { color: '#00B894', fontWeight: '600' }]}>💰 {price_range}</Text>
               </View>
             )}
             {map_source && (

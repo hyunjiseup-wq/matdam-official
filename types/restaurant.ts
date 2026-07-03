@@ -1,5 +1,12 @@
 export type MapSource = 'naver' | 'google';
 
+// 네이버 플레이스에서 자동 추출한 메뉴 한 줄
+export interface MenuItem {
+  name: string;
+  price: string; // "58000" 또는 "변동" 같은 문자열
+  image?: string;
+}
+
 export interface Restaurant {
   id: string;
   owner_id: string;
@@ -13,6 +20,7 @@ export interface Restaurant {
   tags?: string[];
   memo?: string;
   price_range?: string; // 만원 이하 | 1~2만원 | 2~4만원 | 4만원 이상
+  menus?: MenuItem[]; // 네이버에서 자동 추출한 메뉴 목록
   visited: boolean;
   wishlist: boolean;
   priority: number;

@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { MapSource } from '@/types/restaurant';
+import { MapSource, MenuItem } from '@/types/restaurant';
 
 // 웹: 같은 오리진(/api). 앱(네이티브): 배포된 프로덕션 함수로 호출.
 const API_BASE =
@@ -14,7 +14,8 @@ export interface ExtractedPlace {
   image_url: string;
   naver_map_url: string;
   map_source?: MapSource;
-  price_range?: string; // 메뉴 가격 중앙값으로 추정 (네이버만)
+  price_range?: string; // 메뉴 가격 중앙값으로 추정
+  menus?: MenuItem[]; // 메뉴 목록 (구글 링크도 네이버에서 찾아 보강)
   ai: boolean; // AI로 구조화됐는지 (false면 og태그만으로 채운 것)
 }
 

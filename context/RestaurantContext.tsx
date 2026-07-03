@@ -15,6 +15,7 @@ import {
   Feedback,
   FeedbackReply,
   FeedbackStatus,
+  MenuItem,
   MyInfluence,
   OwnerRef,
   Profile,
@@ -81,7 +82,7 @@ interface RestaurantContextType {
 // ── Supabase 행 변환 ─────────────────────────────────────────────────────────
 
 const RESTAURANT_COLUMNS =
-  'id, owner_id, name, area, category, address, naver_map_url, map_source, image_url, tags, memo, price_range, visited, wishlist, priority, created_at, updated_at';
+  'id, owner_id, name, area, category, address, naver_map_url, map_source, image_url, tags, memo, price_range, menus, visited, wishlist, priority, created_at, updated_at';
 
 type SupabaseRow = {
   id: string;
@@ -96,6 +97,7 @@ type SupabaseRow = {
   tags: string[] | null;
   memo: string | null;
   price_range: string | null;
+  menus: MenuItem[] | null;
   visited: boolean | null;
   wishlist: boolean | null;
   priority: number;
@@ -117,6 +119,7 @@ function fromRow(row: SupabaseRow): Restaurant {
     tags: row.tags ?? undefined,
     memo: row.memo ?? undefined,
     price_range: row.price_range ?? undefined,
+    menus: row.menus && row.menus.length > 0 ? row.menus : undefined,
     visited: row.visited ?? false,
     wishlist: row.wishlist ?? false,
     priority: row.priority,
@@ -357,6 +360,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
           tags: data.tags ?? null,
           memo: data.memo ?? null,
           price_range: data.price_range ?? null,
+          menus: data.menus && data.menus.length > 0 ? data.menus : null,
           visited: data.visited ?? false,
           wishlist: data.wishlist ?? false,
           priority: data.priority,
@@ -387,6 +391,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
           ...(data.tags !== undefined && { tags: data.tags ?? null }),
           ...(data.memo !== undefined && { memo: data.memo ?? null }),
           ...(data.price_range !== undefined && { price_range: data.price_range ?? null }),
+          ...(data.menus !== undefined && { menus: data.menus && data.menus.length > 0 ? data.menus : null }),
           ...(data.visited !== undefined && { visited: data.visited }),
           ...(data.wishlist !== undefined && { wishlist: data.wishlist }),
           ...(data.priority !== undefined && { priority: data.priority }),
@@ -453,6 +458,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
           tags: src.tags ?? null,
           memo: src.memo ?? null,
           price_range: src.price_range ?? null,
+          menus: src.menus && src.menus.length > 0 ? src.menus : null,
           visited: false,
           wishlist: true,
           priority: src.priority,

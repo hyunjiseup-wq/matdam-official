@@ -19,7 +19,7 @@ import { AREAS, CATEGORIES, PRICE_RANGES, inferAreaFromAddress } from '@/constan
 import { notify } from '@/lib/confirm';
 import { extractPlace } from '@/lib/placeExtract';
 import { useRestaurants } from '@/context/RestaurantContext';
-import { MapSource, Restaurant } from '@/types/restaurant';
+import { MapSource, MenuItem, Restaurant } from '@/types/restaurant';
 
 function Label({ text, required }: { text: string; required?: boolean }) {
   return (
@@ -104,6 +104,7 @@ type FormData = {
   tagsInput: string;
   memo: string;
   price_range: string;
+  menus: MenuItem[];
   visited: boolean;
   wishlist: boolean;
   priority: number;
@@ -128,6 +129,7 @@ export default function FormScreen() {
     tagsInput: '',
     memo: '',
     price_range: '',
+    menus: [],
     visited: false,
     wishlist: false,
     priority: 3,
@@ -150,6 +152,7 @@ export default function FormScreen() {
         tagsInput: (existing.tags ?? []).join(', '),
         memo: existing.memo ?? '',
         price_range: existing.price_range ?? '',
+        menus: existing.menus ?? [],
         visited: existing.visited,
         wishlist: existing.wishlist,
         priority: existing.priority,
@@ -180,12 +183,15 @@ export default function FormScreen() {
         naver_map_url: d.naver_map_url || url,
         map_source: d.map_source || prev.map_source,
         price_range: d.price_range || prev.price_range,
+        menus: d.menus && d.menus.length > 0 ? d.menus : prev.menus,
       }));
+      const menuNote =
+        d.menus && d.menus.length > 0 ? `\n메뉴 ${d.menus.length}개도 함께 저장돼요. 🍽️` : '';
       notify(
         d.ai ? '자동 인식 완료 ✨' : '기본 정보만 채웠어요',
-        d.ai
+        (d.ai
           ? '내용을 확인하고 필요하면 수정해주세요.'
-          : '이름·사진 위주로 채웠어요. 주소·카테고리는 확인해주세요.'
+          : '이름·사진 위주로 채웠어요. 주소·카테고리는 확인해주세요.') + menuNote
       );
     } catch (e: any) {
       notify('자동 인식 실패', e.message ?? '링크를 확인하거나 직접 입력해주세요.');
@@ -241,6 +247,7 @@ export default function FormScreen() {
       tags: tags.length > 0 ? tags : undefined,
       memo: form.memo.trim() || undefined,
       price_range: form.price_range || undefined,
+      menus: form.menus.length > 0 ? form.menus : undefined,
       visited: form.visited,
       wishlist: form.wishlist,
       priority: form.priority,

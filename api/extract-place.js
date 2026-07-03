@@ -58,23 +58,34 @@ module.exports = async (req, res) => {
             naver_map_url: finalUrl,
             map_source: 'naver',
             price_range: parsed.price_range,
+            menus: parsed.menus,
             ai: false,
           });
         }
       }
     }
 
-    // 3) 구글: 최종 URL 에서 이름·좌표 추출 → 좌표 역지오코딩으로 주소 완성
+    // 3) 구글: 최종 URL 에서 이름·좌표 추출 → 좌표 역지오코딩으로 주소 완성.
+    //    구글은 업종·사진·메뉴를 서버에서 못 얻으므로, 같은 가게를 네이버에서
+    //    이름으로 찾아 카테고리·사진·가격대·메뉴를 보강한다.
     if (map_source === 'google') {
       const g = await parseGoogle(finalUrl, html);
       if (g && g.name) {
+        let enrich = null;
+        try {
+          enrich = await enrichFromNaver(g.name, g.address);
+        } catch (e) {
+          console.warn('[extract-place] 네이버 보강 실패:', e && e.message);
+        }
         return res.status(200).json({
           name: g.name,
-          address: g.address,
-          category: '', // 구글은 서버에서 업종을 못 얻음 → 사용자가 선택
-          image_url: '', // 구글 대표사진은 API 없이는 못 얻음 (로고 대신 비움)
+          address: g.address || (enrich && enrich.address) || '',
+          category: enrich ? mapNaverCategory(enrich.naverCategory) : '',
+          image_url: (enrich && enrich.image_url) || '',
           naver_map_url: finalUrl,
           map_source: 'google',
+          price_range: (enrich && enrich.price_range) || '',
+          menus: (enrich && enrich.menus) || [],
           ai: false,
         });
       }
@@ -175,7 +186,69 @@ async function parseNaverByPlaceId(id) {
     naverCategory,
     image_url: firstPlaceImage(html),
     price_range: estimatePriceRange(html),
+    menus: extractMenus(html),
   };
+}
+
+// APOLLO_STATE 의 "Menu:{placeId}_{n}" 블록에서 메뉴명·가격·사진 추출
+function extractMenus(html) {
+  const menus = [];
+  const re = /"Menu:[^"]*":\{([\s\S]*?)"index":(\d+)\}/g;
+  let m;
+  const unq = (raw) => {
+    try {
+      return JSON.parse(`"${raw}"`);
+    } catch {
+      return decodeEntities(raw);
+    }
+  };
+  while ((m = re.exec(html)) !== null && menus.length < 30) {
+    const block = m[1];
+    const nameM = block.match(/"name":"((?:[^"\\]|\\.)*)"/);
+    if (!nameM) continue;
+    const priceM = block.match(/"price":"([^"]*)"/);
+    const imgM = block.match(/"images":\["((?:[^"\\]|\\.)*?)"/);
+    menus.push({
+      name: clean(unq(nameM[1])),
+      price: priceM ? clean(unq(priceM[1])) : '',
+      image: imgM ? unq(imgM[1]) : '',
+      index: parseInt(m[2], 10),
+    });
+  }
+  menus.sort((a, b) => a.index - b.index);
+  return menus.slice(0, 20).map(({ name, price, image }) => ({ name, price, image }));
+}
+
+// 이름(+지역)으로 네이버에서 같은 가게를 찾아 상세를 파싱 (구글 링크 보강용)
+async function enrichFromNaver(name, address) {
+  const region = clean(String(address || '').split(/\s+/).slice(0, 2).join(' '));
+  const q = encodeURIComponent(clean(`${name} ${region}`));
+  const r = await fetch(`https://pcmap.place.naver.com/restaurant/list?query=${q}`, {
+    headers: {
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+      'Accept-Language': 'ko-KR,ko;q=0.9',
+    },
+  });
+  if (!r.ok) return null;
+  const listHtml = await r.text();
+
+  const norm = (s) =>
+    String(s || '').toLowerCase().replace(/\s+/g, '').replace(/[^가-힣a-z0-9]/g, '');
+  const target = norm(name);
+  const re = /"id":"(\d{6,})"[^}]*?"name":"((?:[^"\\]|\\.)*)"/g;
+  let m;
+  while ((m = re.exec(listHtml)) !== null) {
+    let candName = m[2];
+    try {
+      candName = JSON.parse(`"${candName}"`);
+    } catch {}
+    const c = norm(candName);
+    if (c && (c.includes(target) || target.includes(c))) {
+      return parseNaverByPlaceId(m[1]);
+    }
+  }
+  return null;
 }
 
 // 메뉴 가격들의 중앙값으로 가격대 추정 (없으면 빈 문자열)

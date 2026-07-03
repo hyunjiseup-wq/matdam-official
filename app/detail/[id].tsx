@@ -18,6 +18,11 @@ import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
 import { Restaurant, Review } from '@/types/restaurant';
 
+function formatMenuPrice(price: string): string {
+  if (/^\d+$/.test(price)) return `${parseInt(price, 10).toLocaleString('ko-KR')}원`;
+  return price || '가격 변동';
+}
+
 function Stars({ count, size = 20 }: { count: number; size?: number }) {
   return (
     <View style={{ flexDirection: 'row', gap: 3 }}>
@@ -54,6 +59,7 @@ export default function DetailScreen() {
   const [deleting, setDeleting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [showAllMenus, setShowAllMenus] = useState(false);
 
   // 내 리스트에 없으면 DB에서 직접 조회
   useEffect(() => {
@@ -102,7 +108,7 @@ export default function DetailScreen() {
   }
 
   const isMine = restaurant.owner_id === user?.id;
-  const { name, area, category, address, naver_map_url, map_source, image_url, tags, memo, price_range, visited, wishlist, priority } = restaurant;
+  const { name, area, category, address, naver_map_url, map_source, image_url, tags, memo, price_range, menus, visited, wishlist, priority } = restaurant;
   const catColor = category ? CATEGORY_COLORS[category] ?? '#888' : '#888';
   const catBg = category ? CATEGORY_BG[category] ?? '#f5f5f5' : '#f5f5f5';
   const isGoogle = map_source === 'google';
@@ -280,6 +286,35 @@ export default function DetailScreen() {
           </View>
         )}
 
+        {/* 메뉴 (네이버에서 자동 추출) */}
+        {menus && menus.length > 0 && (
+          <View style={styles.infoCard}>
+            <Text style={styles.sectionTitle}>🍽️ 메뉴 ({menus.length})</Text>
+            {(showAllMenus ? menus : menus.slice(0, 6)).map((menu, i) => (
+              <View key={i} style={styles.menuRow}>
+                {menu.image ? (
+                  <Image source={{ uri: menu.image }} style={styles.menuImage} />
+                ) : (
+                  <View style={[styles.menuImage, styles.menuImagePlaceholder]}>
+                    <Text style={{ fontSize: 16 }}>🍴</Text>
+                  </View>
+                )}
+                <Text style={styles.menuName} numberOfLines={2}>
+                  {menu.name}
+                </Text>
+                <Text style={styles.menuPrice}>{formatMenuPrice(menu.price)}</Text>
+              </View>
+            ))}
+            {menus.length > 6 && (
+              <Pressable onPress={() => setShowAllMenus((v) => !v)} style={styles.menuMoreBtn}>
+                <Text style={styles.menuMoreText}>
+                  {showAllMenus ? '접기 ▲' : `메뉴 ${menus.length - 6}개 더 보기 ▼`}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+
         {/* 지도 버튼 (출처에 맞게) */}
         {(naver_map_url || address) && (
           <Pressable
@@ -446,6 +481,13 @@ const styles = StyleSheet.create({
   addressLink: { color: '#0984E3', textDecorationLine: 'underline' },
 
   sectionTitle: { fontSize: 13, color: '#aaa', fontWeight: '600', marginBottom: 4 },
+  menuRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  menuImage: { width: 44, height: 44, borderRadius: 8, backgroundColor: '#f0f0f0' },
+  menuImagePlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  menuName: { flex: 1, fontSize: 14, color: '#333', lineHeight: 19 },
+  menuPrice: { fontSize: 14, color: '#00B894', fontWeight: '700' },
+  menuMoreBtn: { alignItems: 'center', paddingVertical: 8, backgroundColor: '#f8f8f8', borderRadius: 8 },
+  menuMoreText: { fontSize: 13, color: '#888', fontWeight: '600' },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   tag: { backgroundColor: '#f5f5f5', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   tagText: { fontSize: 13, color: '#666' },

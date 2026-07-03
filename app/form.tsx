@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ChipRow from '@/components/ChipRow';
 import { AREAS, CATEGORIES, inferAreaFromAddress } from '@/constants/filters';
 import { notify } from '@/lib/confirm';
 import { extractPlace } from '@/lib/placeExtract';
@@ -58,22 +59,20 @@ function ChipSelector({
   color?: string;
 }) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
-      <View style={{ flexDirection: 'row', gap: 6 }}>
-        {options.map((opt) => {
-          const active = value === opt;
-          return (
-            <Pressable
-              key={opt}
-              onPress={() => onChange(active ? '' : opt)}
-              style={[styles.chip, active && { backgroundColor: color, borderColor: color }]}
-            >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>{opt}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </ScrollView>
+    <ChipRow style={{ marginTop: 6, gap: 6, flexDirection: 'row' }}>
+      {options.map((opt) => {
+        const active = value === opt;
+        return (
+          <Pressable
+            key={opt}
+            onPress={() => onChange(active ? '' : opt)}
+            style={[styles.chip, active && { backgroundColor: color, borderColor: color }]}
+          >
+            <Text style={[styles.chipText, active && styles.chipTextActive]}>{opt}</Text>
+          </Pressable>
+        );
+      })}
+    </ChipRow>
   );
 }
 

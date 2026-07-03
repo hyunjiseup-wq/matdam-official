@@ -7,7 +7,6 @@ import {
   FlatList,
   Platform,
   Pressable,
-  ScrollView,
   Share,
   StyleSheet,
   Text,
@@ -15,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Avatar from '@/components/Avatar';
+import ChipRow from '@/components/ChipRow';
 import RestaurantCard from '@/components/RestaurantCard';
 import SearchBar from '@/components/SearchBar';
 import { CATEGORIES, PROVINCES, inferDistrictFromAddress, inferProvinceFromAddress } from '@/constants/filters';
@@ -237,7 +237,7 @@ export default function UserListScreen() {
 
             {/* 지역 필터 (이 리스트에 있는 시/도만) */}
             {provinces.length > 0 && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+              <ChipRow style={styles.chipRow}>
                 <Pressable
                   onPress={() => { setProvince(null); setDistrict(null); }}
                   style={[styles.chip, province === null && styles.chipActiveRegion]}
@@ -253,12 +253,12 @@ export default function UserListScreen() {
                     <Text style={[styles.chipText, province === p && styles.chipTextActive]}>{p}</Text>
                   </Pressable>
                 ))}
-              </ScrollView>
+              </ChipRow>
             )}
 
             {/* 구 (시/도 선택 시) */}
             {province && districts.length > 0 && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+              <ChipRow style={styles.chipRow}>
                 <Pressable
                   onPress={() => setDistrict(null)}
                   style={[styles.chip, district === null && styles.chipActiveDistrict]}
@@ -274,12 +274,12 @@ export default function UserListScreen() {
                     <Text style={[styles.chipText, district === d && styles.chipTextActive]}>{d}</Text>
                   </Pressable>
                 ))}
-              </ScrollView>
+              </ChipRow>
             )}
 
             {/* 카테고리 필터 (이 리스트에 있는 것만) */}
             {categories.length > 0 && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+              <ChipRow style={styles.chipRow}>
                 <Pressable
                   onPress={() => setCategory(null)}
                   style={[styles.chip, category === null && styles.chipActiveCategory]}
@@ -295,7 +295,7 @@ export default function UserListScreen() {
                     <Text style={[styles.chipText, category === c && styles.chipTextActive]}>{c}</Text>
                   </Pressable>
                 ))}
-              </ScrollView>
+              </ChipRow>
             )}
 
             {/* 필터 결과 개수 */}

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import ChipRow from '@/components/ChipRow';
 import {
   CATEGORIES,
   PROVINCES,
@@ -70,7 +71,7 @@ export default function FilterBar() {
   return (
     <View>
       {/* 시/도 */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+      <ChipRow style={styles.row}>
         <Chip
           label="전체 지역"
           active={provinceFilter === null}
@@ -90,11 +91,11 @@ export default function FilterBar() {
             }}
           />
         ))}
-      </ScrollView>
+      </ChipRow>
 
       {/* 구 (시/도 선택 시 노출) */}
       {provinceFilter && districts.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subRow}>
+        <ChipRow style={styles.subRow}>
           <Chip
             label={`${provinceFilter} 전체`}
             active={areaFilter === null}
@@ -110,11 +111,11 @@ export default function FilterBar() {
               activeColor="#E17055"
             />
           ))}
-        </ScrollView>
+        </ChipRow>
       )}
 
       {/* 카테고리 */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+      <ChipRow style={styles.row}>
         <Chip
           label="전체 카테고리"
           active={categoryFilter === null}
@@ -130,7 +131,7 @@ export default function FilterBar() {
             activeColor="#6C5CE7"
           />
         ))}
-      </ScrollView>
+      </ChipRow>
 
       {/* 상태 */}
       <View style={styles.visitedRow}>

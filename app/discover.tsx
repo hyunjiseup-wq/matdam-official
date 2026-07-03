@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Avatar from '@/components/Avatar';
+import ChipRow from '@/components/ChipRow';
 import SearchBar from '@/components/SearchBar';
 import { CATEGORIES, PROVINCES, inferDistrictFromAddress, inferProvinceFromAddress } from '@/constants/filters';
 import { useRestaurants } from '@/context/RestaurantContext';
@@ -288,7 +289,7 @@ export default function DiscoverScreen() {
 
             {/* 지역 필터 (데이터에 있는 시/도만 노출) */}
             {provinces.length > 0 && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.regionRow}>
+              <ChipRow style={styles.regionRow}>
                 <Pressable
                   onPress={() => { setProvince(null); setDistrict(null); }}
                   style={[styles.regionChip, province === null && styles.regionChipActive]}
@@ -304,12 +305,12 @@ export default function DiscoverScreen() {
                     <Text style={[styles.regionText, province === p && styles.regionTextActive]}>{p}</Text>
                   </Pressable>
                 ))}
-              </ScrollView>
+              </ChipRow>
             )}
 
             {/* 구 (시/도 선택 시) */}
             {province && districts.length > 0 && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.regionRow}>
+              <ChipRow style={styles.regionRow}>
                 <Pressable
                   onPress={() => setDistrict(null)}
                   style={[styles.regionChip, styles.districtChip, district === null && styles.districtChipActive]}
@@ -325,12 +326,12 @@ export default function DiscoverScreen() {
                     <Text style={[styles.regionText, district === d && styles.regionTextActive]}>{d}</Text>
                   </Pressable>
                 ))}
-              </ScrollView>
+              </ChipRow>
             )}
 
             {/* 카테고리 필터 (데이터에 있는 것만 노출) */}
             {categories.length > 0 && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.regionRow}>
+              <ChipRow style={styles.regionRow}>
                 <Pressable
                   onPress={() => setCategory(null)}
                   style={[styles.regionChip, category === null && styles.categoryChipActive]}
@@ -346,7 +347,7 @@ export default function DiscoverScreen() {
                     <Text style={[styles.regionText, category === c && styles.regionTextActive]}>{c}</Text>
                   </Pressable>
                 ))}
-              </ScrollView>
+              </ChipRow>
             )}
 
             <View style={styles.sortRow}>

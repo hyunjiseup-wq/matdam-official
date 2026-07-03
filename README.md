@@ -40,6 +40,7 @@ React Native(Expo)로 만든 **개인별 맛집 리스트 공유 앱**입니다.
 |---|---|
 | 📂 개인 리스트 | 사용자마다 자기만의 맛집 리스트 (추가·수정·삭제는 본인 것만) |
 | ❤️ 가고싶음 / ✅ 방문함 | 위시리스트와 방문 기록이 완전히 독립, 따로 체크 |
+| ✨ 지도 링크 자동 채우기 | **네이버·구글 지도 공유 링크**만 붙여넣으면 AI(Claude)가 이름·주소·카테고리·사진을 자동 인식해 폼에 채움 → 사용자가 확인·수정 후 저장 |
 | 📷 음식 사진 | **사진 직접 업로드**(Supabase Storage) 또는 URL → 썸네일 + 대표 이미지 |
 | 🖼️ 대표 사진 자동 연동 | 기존 등록 맛집 **300곳+에 구글 Places 실제 가게 사진** 자동 연동 (백필 스크립트) |
 | 🗺️ 지도 출처 | **네이버/구글 선택** → 카드·상세에 N/G 배지, 출처에 맞는 지도로 열기 |
@@ -131,6 +132,15 @@ npm install
 EXPO_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=<your-anon-or-publishable-key>
 ```
+
+**지도 링크 자동 채우기(선택)** — 서버리스 함수 `api/extract-place.js` 가 사용합니다.
+Vercel 대시보드 → **Settings → Environment Variables** 에 추가:
+```
+ANTHROPIC_API_KEY=<your-anthropic-key>
+```
+- 키가 **있으면**: Claude(Haiku)가 이름·주소·카테고리·사진을 정확히 구조화
+- 키가 **없으면**: og태그만으로 이름·사진 위주로 채우는 fallback 동작 (여전히 작동)
+- 네이티브 앱에서 호출할 함수 주소를 바꾸려면 `EXPO_PUBLIC_API_BASE` 로 지정 (기본값: 프로덕션 URL)
 
 ### 3) Supabase 스키마 준비
 Supabase 대시보드 → **SQL Editor** 에서 `supabase/migration.sql` 전체를 실행합니다.

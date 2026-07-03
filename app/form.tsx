@@ -14,8 +14,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AREAS, CATEGORIES } from '@/constants/filters';
+import { AREAS, CATEGORIES, inferAreaFromAddress } from '@/constants/filters';
 import { notify } from '@/lib/confirm';
+import { extractPlace } from '@/lib/placeExtract';
 import { useRestaurants } from '@/context/RestaurantContext';
 import { MapSource, Restaurant } from '@/types/restaurant';
 
@@ -132,6 +133,8 @@ export default function FormScreen() {
   });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [autoUrl, setAutoUrl] = useState('');
+  const [extracting, setExtracting] = useState(false);
 
   useEffect(() => {
     if (existing) {
@@ -154,6 +157,38 @@ export default function FormScreen() {
 
   function set<K extends keyof FormData>(key: K, value: FormData[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function handleAutofill() {
+    const url = autoUrl.trim();
+    if (!url) {
+      notify('안내', '네이버 또는 구글 지도 링크를 붙여넣어 주세요.');
+      return;
+    }
+    setExtracting(true);
+    try {
+      const d = await extractPlace(url);
+      setForm((prev) => ({
+        ...prev,
+        name: d.name || prev.name,
+        address: d.address || prev.address,
+        category: d.category || prev.category,
+        area: inferAreaFromAddress(d.address) || prev.area,
+        image_url: d.image_url || prev.image_url,
+        naver_map_url: d.naver_map_url || url,
+        map_source: d.map_source || prev.map_source,
+      }));
+      notify(
+        d.ai ? '자동 인식 완료 ✨' : '기본 정보만 채웠어요',
+        d.ai
+          ? '내용을 확인하고 필요하면 수정해주세요.'
+          : '이름·사진 위주로 채웠어요. 주소·카테고리는 확인해주세요.'
+      );
+    } catch (e: any) {
+      notify('자동 인식 실패', e.message ?? '링크를 확인하거나 직접 입력해주세요.');
+    } finally {
+      setExtracting(false);
+    }
   }
 
   function pickPhoto() {
@@ -228,6 +263,47 @@ export default function FormScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          {/* 지도 링크 자동 채우기 */}
+          {!isEdit && (
+            <View style={styles.autofillCard}>
+              <View style={styles.autofillHead}>
+                <Ionicons name="sparkles" size={16} color="#6C5CE7" />
+                <Text style={styles.autofillTitle}>지도 링크로 자동 채우기</Text>
+              </View>
+              <Text style={styles.autofillSub}>
+                네이버·구글 지도의 공유 링크를 붙여넣으면 이름·주소·사진을 자동으로 인식해요.
+              </Text>
+              <TextInput
+                style={[styles.input, { marginTop: 10 }]}
+                value={autoUrl}
+                onChangeText={setAutoUrl}
+                placeholder="예: https://naver.me/xxxxxxx"
+                placeholderTextColor="#ccc"
+                autoCapitalize="none"
+                keyboardType="url"
+                editable={!extracting}
+              />
+              <Pressable
+                onPress={handleAutofill}
+                disabled={extracting}
+                style={({ pressed }) => [
+                  styles.autofillBtn,
+                  pressed && { opacity: 0.85 },
+                  extracting && { opacity: 0.6 },
+                ]}
+              >
+                <Ionicons
+                  name={extracting ? 'hourglass-outline' : 'sparkles-outline'}
+                  size={18}
+                  color="#fff"
+                />
+                <Text style={styles.autofillBtnText}>
+                  {extracting ? '인식 중...' : '자동으로 채우기'}
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
           {/* 식당 이름 */}
           <Field label="식당 이름" required>
             <TextInput
@@ -424,6 +500,28 @@ export default function FormScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F5F5F5' },
   content: { padding: 16, gap: 4, paddingBottom: 40 },
+  autofillCard: {
+    backgroundColor: '#F5F3FF',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: '#E0DBFF',
+  },
+  autofillHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  autofillTitle: { fontSize: 15, fontWeight: '800', color: '#6C5CE7' },
+  autofillSub: { fontSize: 12, color: '#8A7FC0', marginTop: 6, lineHeight: 17 },
+  autofillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#6C5CE7',
+    borderRadius: 12,
+    paddingVertical: 13,
+    marginTop: 10,
+  },
+  autofillBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   field: { marginBottom: 16 },
   label: { fontSize: 13, fontWeight: '600', color: '#555', marginBottom: 6 },
   required: { color: '#FF7A45' },

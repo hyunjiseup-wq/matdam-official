@@ -63,7 +63,23 @@ module.exports = async (req, res) => {
       }
     }
 
-    // 3) 그 외(구글 등): og태그 + Claude fallback
+    // 3) 구글: 최종 URL 에서 이름·좌표 추출 → 좌표 역지오코딩으로 주소 완성
+    if (map_source === 'google') {
+      const g = await parseGoogle(finalUrl, html);
+      if (g && g.name) {
+        return res.status(200).json({
+          name: g.name,
+          address: g.address,
+          category: '', // 구글은 서버에서 업종을 못 얻음 → 사용자가 선택
+          image_url: '', // 구글 대표사진은 API 없이는 못 얻음 (로고 대신 비움)
+          naver_map_url: finalUrl,
+          map_source: 'google',
+          ai: false,
+        });
+      }
+    }
+
+    // 4) 그 외: og태그 + Claude fallback
     const meta = extractMeta(html);
     const apiKey = process.env.ANTHROPIC_API_KEY;
     let structured = null;
@@ -81,7 +97,8 @@ module.exports = async (req, res) => {
     const address = clean((structured && structured.address) || meta.address || '');
     let category = (structured && structured.category) || '';
     if (!CATEGORIES.includes(category)) category = '';
-    const image_url = (structured && structured.image_url) || meta.ogImage || '';
+    let image_url = (structured && structured.image_url) || meta.ogImage || '';
+    if (/google\.com\/maps\/about\/images\/icons/i.test(image_url)) image_url = ''; // 구글 로고 제외
 
     return res.status(200).json({
       name,
@@ -185,7 +202,58 @@ function mapNaverCategory(cat) {
   return ''; // 애매하면 비워서 사용자가 선택
 }
 
-// ── og태그 / JSON-LD (구글·기타) ──────────────────────────────────────────────
+// ── 구글 전용 ─────────────────────────────────────────────────────────────────
+
+// 구글 지도 최종 URL(.../maps/place/{이름}/data=...!3d{lat}!4d{lng})에서
+// 이름·좌표를 뽑고, 좌표를 역지오코딩해 한국 주소를 만든다.
+async function parseGoogle(finalUrl, html) {
+  let name = '';
+  const mName = finalUrl.match(/\/maps\/place\/([^/@]+)/);
+  if (mName) {
+    try {
+      name = clean(decodeURIComponent(mName[1].replace(/\+/g, ' ')));
+    } catch {
+      name = clean(mName[1].replace(/\+/g, ' '));
+    }
+  }
+  if (!name) {
+    const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+    name = cleanTitle(metaContent(html, 'og:title') || (titleMatch ? titleMatch[1] : ''));
+  }
+
+  let address = '';
+  const mLL = finalUrl.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+  if (mLL) address = await reverseGeocode(mLL[1], mLL[2]);
+
+  return { name, address };
+}
+
+// 좌표 → 한국 주소 (OSM Nominatim, 무료·키 불필요)
+async function reverseGeocode(lat, lon) {
+  try {
+    const r = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ko`,
+      { headers: { 'User-Agent': 'matdam-app/1.0 (https://matdam-official.vercel.app)' } }
+    );
+    if (!r.ok) return '';
+    const d = await r.json();
+    const a = d.address || {};
+    const parts = [];
+    const push = (v) => {
+      if (v && !parts.includes(v)) parts.push(v);
+    };
+    push(a.province || a.state || a.region);
+    push(a.city || a.county);
+    push(a.borough || a.city_district || a.town);
+    push(a.road);
+    if (a.house_number) parts.push(a.house_number);
+    return clean(parts.join(' '));
+  } catch {
+    return '';
+  }
+}
+
+// ── og태그 / JSON-LD (기타) ───────────────────────────────────────────────────
 
 function metaContent(html, key) {
   const patterns = [

@@ -5,9 +5,11 @@
 // POST /api/extract-place  { "url": "https://naver.me/xxxx" }
 //   → { name, address, category, image_url, naver_map_url, map_source }
 //
-// 환경변수(선택): ANTHROPIC_API_KEY
-//   - 있으면 Claude(Haiku)로 정확히 구조화
-//   - 없으면 og:태그만으로 이름·사진을 best-effort 로 채움
+// 네이버: 링크에서 장소 ID를 뽑아 m.place.naver.com 페이지의
+//         __APOLLO_STATE__(JSON)를 직접 파싱 → 정확·무료.
+// 구글:   og태그 + (선택)Claude 로 구조화.
+//
+// 환경변수(선택): ANTHROPIC_API_KEY  ← 구글/파싱 실패 시 fallback 에만 사용
 // =============================================================
 
 const CATEGORIES = [
@@ -16,6 +18,9 @@ const CATEGORIES = [
 ];
 
 const CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
+
+const UA =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -33,29 +38,39 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: '유효한 지도 링크를 붙여넣어 주세요.' });
     }
 
-    // 1) 페이지 가져오기 (단축링크 리다이렉트 추적)
-    const pageRes = await fetch(url, {
-      redirect: 'follow',
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-        'Accept-Language': 'ko-KR,ko;q=0.9',
-      },
-    });
-    const finalUrl = pageRes.url || url;
-    const html = await pageRes.text();
-
+    // 1) 링크 열기 (단축링크 리다이렉트 추적) — 최종 URL 확보용
+    const pageRes = await fetchPage(url);
+    const finalUrl = pageRes.finalUrl;
+    const html = pageRes.html;
     const map_source = detectSource(finalUrl, url);
-    const meta = extractMeta(html);
 
-    // 2) Claude 로 구조화 (키 있을 때)
+    // 2) 네이버: 장소 ID 로 m.place 페이지 직접 파싱
+    if (map_source === 'naver') {
+      const placeId = extractNaverId(finalUrl) || extractNaverId(url);
+      if (placeId) {
+        const parsed = await parseNaverByPlaceId(placeId);
+        if (parsed && parsed.name) {
+          return res.status(200).json({
+            name: parsed.name,
+            address: parsed.address,
+            category: mapNaverCategory(parsed.naverCategory),
+            image_url: parsed.image_url,
+            naver_map_url: finalUrl,
+            map_source: 'naver',
+            ai: false,
+          });
+        }
+      }
+    }
+
+    // 3) 그 외(구글 등): og태그 + Claude fallback
+    const meta = extractMeta(html);
     const apiKey = process.env.ANTHROPIC_API_KEY;
     let structured = null;
     if (apiKey) {
       try {
         structured = await callClaude(apiKey, meta, finalUrl);
       } catch (e) {
-        // Claude 실패 시 meta fallback 으로 진행
         console.warn('[extract-place] Claude 실패:', e && e.message);
       }
     }
@@ -75,7 +90,7 @@ module.exports = async (req, res) => {
       image_url,
       naver_map_url: finalUrl,
       map_source: map_source || undefined,
-      ai: Boolean(structured), // AI로 구조화됐는지 여부 (클라이언트 안내용)
+      ai: Boolean(structured),
     });
   } catch (e) {
     return res
@@ -84,7 +99,15 @@ module.exports = async (req, res) => {
   }
 };
 
-// ── 헬퍼 ─────────────────────────────────────────────────────────────────────
+// ── 공통 ─────────────────────────────────────────────────────────────────────
+
+async function fetchPage(url) {
+  const r = await fetch(url, {
+    redirect: 'follow',
+    headers: { 'User-Agent': UA, 'Accept-Language': 'ko-KR,ko;q=0.9' },
+  });
+  return { finalUrl: r.url || url, html: await r.text() };
+}
 
 function detectSource(finalUrl, original) {
   const s = `${finalUrl} ${original}`.toLowerCase();
@@ -97,15 +120,74 @@ function clean(s) {
   return String(s || '').replace(/\s+/g, ' ').trim();
 }
 
-// "성수연방 : 네이버", "성수연방 - Google 지도" 같은 꼬리표 제거
-function cleanTitle(t) {
-  return String(t || '')
-    .replace(/\s*[:\-|]\s*(네이버|Naver|NAVER|Google\s*지도|Google Maps|구글 지도).*$/i, '')
-    .trim();
+// ── 네이버 전용 ───────────────────────────────────────────────────────────────
+
+// URL 에서 장소 ID 추출 (place/1332349195, restaurant/123..., pinId=123...)
+function extractNaverId(u) {
+  const s = String(u || '');
+  let m = s.match(/(?:place|restaurant|hairshop|hospital|entry\/place)\/(\d{6,})/);
+  if (m) return m[1];
+  m = s.match(/[?&](?:id|pinId|placeId)=(\d{6,})/);
+  if (m) return m[1];
+  return '';
 }
 
+async function parseNaverByPlaceId(id) {
+  const { html } = await fetchPage(`https://m.place.naver.com/place/${id}/home`);
+
+  // __APOLLO_STATE__ 안의 PlaceDetailBase:{id} 객체에서 필드 추출
+  const marker = `"PlaceDetailBase:${id}"`;
+  const start = html.indexOf(marker);
+  if (start === -1) return null;
+  const slice = html.slice(start, start + 2500);
+
+  const g = (key) => {
+    const m = slice.match(new RegExp(`"${key}":"([^"]*)"`));
+    return m ? decodeEntities(m[1]) : '';
+  };
+
+  const name = clean(g('name'));
+  const roadAddress = clean(g('roadAddress'));
+  const address = clean(g('address')); // 지번 (도로명 없을 때 대비)
+  const naverCategory = clean(g('category'));
+
+  return {
+    name,
+    address: roadAddress || address,
+    naverCategory,
+    image_url: firstPlaceImage(html),
+  };
+}
+
+// 대표 사진: search.pstatic.net 을 거치는 phinf 실제 사진 URL
+function firstPlaceImage(html) {
+  const m = html.match(
+    /https:\/\/search\.pstatic\.net\/common\/\?[^"'\\ ]*phinf[^"'\\ ]*/i
+  );
+  if (m) return decodeEntities(m[0]);
+  const og = metaContent(html, 'og:image');
+  return og || '';
+}
+
+// 네이버 업종명 → 맛담 카테고리
+function mapNaverCategory(cat) {
+  const c = String(cat || '');
+  const has = (arr) => arr.some((k) => c.includes(k));
+  if (has(['디저트', '베이커리', '제과', '빵', '도넛', '케이크', '아이스크림'])) return '디저트';
+  if (has(['카페', '커피', '브런치', '차', '티하우스'])) return '카페';
+  if (has(['와인', '바', '펍', '포차', '호프', '칵테일', '이자카야', '맥주', '위스키', '술집'])) return 'BAR';
+  if (has(['일식', '스시', '초밥', '라멘', '우동', '돈카츠', '규동', '일본', '사시미', '오마카세'])) return '일식';
+  if (has(['중식', '중국', '마라', '양꼬치', '딤섬', '훠궈'])) return '중식';
+  if (has(['파스타', '이탈리', '피자', '스테이크', '프렌치', '스페인', '멕시', '양식', '이탈리안'])) return '양식';
+  if (has(['고기', '삼겹', '갈비', '곱창', '정육', '구이', '바베큐', '족발', '보쌈'])) return '한식/고기';
+  if (has(['분식', '떡볶이', '김밥', '순대'])) return '분식';
+  if (has(['한식', '국밥', '백반', '한정식', '찌개', '국수', '냉면', '칼국수', '해장', '설렁탕'])) return '한식';
+  return ''; // 애매하면 비워서 사용자가 선택
+}
+
+// ── og태그 / JSON-LD (구글·기타) ──────────────────────────────────────────────
+
 function metaContent(html, key) {
-  // property/name 속성 순서가 뒤바뀐 경우까지 커버
   const patterns = [
     new RegExp(`<meta[^>]+(?:property|name)=["']${key}["'][^>]+content=["']([^"']*)["']`, 'i'),
     new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]+(?:property|name)=["']${key}["']`, 'i'),
@@ -124,7 +206,6 @@ function extractMeta(html) {
   const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
   const title = titleMatch ? decodeEntities(titleMatch[1]) : '';
 
-  // JSON-LD (주소·이름이 들어있는 경우가 많음)
   let jsonld = '';
   const ldMatches = html.match(
     /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi
@@ -136,9 +217,7 @@ function extractMeta(html) {
       .slice(0, 4000);
   }
 
-  // 주소로 보이는 텍스트 (한국 도로명/지번 흔한 패턴)
   const address = guessAddress(`${ogDescription}\n${jsonld}`);
-
   return { ogTitle, ogImage, ogDescription, title, jsonld, address };
 }
 
@@ -150,6 +229,12 @@ function guessAddress(text) {
   return m ? clean(m[1]) : '';
 }
 
+function cleanTitle(t) {
+  return String(t || '')
+    .replace(/\s*[:\-|]\s*(네이버|Naver|NAVER|Google\s*지도|Google Maps|구글 지도).*$/i, '')
+    .trim();
+}
+
 function decodeEntities(s) {
   return String(s || '')
     .replace(/&amp;/g, '&')
@@ -158,7 +243,8 @@ function decodeEntities(s) {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&#x27;/gi, "'")
-    .replace(/&nbsp;/g, ' ');
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\\u002F/gi, '/');
 }
 
 async function callClaude(apiKey, meta, finalUrl) {
@@ -180,19 +266,13 @@ async function callClaude(apiKey, meta, finalUrl) {
       type: 'object',
       properties: {
         name: { type: 'string', description: '가게(장소) 이름. 사이트명 꼬리표 제외.' },
-        address: {
-          type: 'string',
-          description: '한국 주소 전체(도로명 우선). 없으면 빈 문자열.',
-        },
+        address: { type: 'string', description: '한국 주소 전체(도로명 우선). 없으면 빈 문자열.' },
         category: {
           type: 'string',
           enum: ['', ...CATEGORIES],
           description: `업종. 다음 중 가장 가까운 하나: ${CATEGORIES.join(', ')}. 모르면 빈 문자열.`,
         },
-        image_url: {
-          type: 'string',
-          description: '대표 사진 URL(og:image 등). 없으면 빈 문자열.',
-        },
+        image_url: { type: 'string', description: '대표 사진 URL. 없으면 빈 문자열.' },
       },
       required: ['name', 'address', 'category', 'image_url'],
     },
@@ -214,9 +294,8 @@ async function callClaude(apiKey, meta, finalUrl) {
         {
           role: 'user',
           content:
-            '아래는 네이버/구글 지도 공유 페이지에서 뽑은 메타데이터야. ' +
-            '여기서 식당(장소) 정보를 추출해서 save_place 도구로 저장해줘. ' +
-            '추측이 어려우면 빈 문자열로 둬.\n\n' +
+            '아래는 지도 공유 페이지에서 뽑은 메타데이터야. 여기서 식당(장소) 정보를 ' +
+            '추출해서 save_place 도구로 저장해줘. 추측이 어려우면 빈 문자열로 둬.\n\n' +
             context,
         },
       ],

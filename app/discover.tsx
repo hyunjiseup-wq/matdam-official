@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Avatar from '@/components/Avatar';
 import SearchBar from '@/components/SearchBar';
-import { PROVINCES, inferDistrictFromAddress, inferProvinceFromAddress } from '@/constants/filters';
+import { CATEGORIES, PROVINCES, inferDistrictFromAddress, inferProvinceFromAddress } from '@/constants/filters';
 import { useRestaurants } from '@/context/RestaurantContext';
 import { DiscoverItem, DiscoverSort, OwnerRef, Profile } from '@/types/restaurant';
 
@@ -153,6 +153,7 @@ export default function DiscoverScreen() {
   const [query, setQuery] = useState('');
   const [province, setProvince] = useState<string | null>(null);
   const [district, setDistrict] = useState<string | null>(null);
+  const [category, setCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
 
@@ -218,6 +219,17 @@ export default function DiscoverScreen() {
     return Array.from(set).sort();
   }, [feed, province]);
 
+  // 데이터에 실제로 존재하는 카테고리만 노출 (기본 순서 유지)
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    feed.forEach((it) => {
+      if (it.category) set.add(it.category);
+    });
+    const known = CATEGORIES.filter((c) => set.has(c));
+    const extra = [...set].filter((c) => !CATEGORIES.includes(c)).sort();
+    return [...known, ...extra];
+  }, [feed]);
+
   const visible = useMemo(() => {
     const filtered = feed.filter((it) => {
       if (q && !`${it.name} ${it.area ?? ''} ${it.category ?? ''} ${it.address ?? ''}`.toLowerCase().includes(q))
@@ -228,10 +240,11 @@ export default function DiscoverScreen() {
         const inArea = it.area === district;
         if (!inDist && !inArea) return false;
       }
+      if (category && it.category !== category) return false;
       return true;
     });
     return sortFeed(filtered, sort);
-  }, [feed, q, province, district, sort]);
+  }, [feed, q, province, district, category, sort]);
 
   if (loading) {
     return (
@@ -315,6 +328,27 @@ export default function DiscoverScreen() {
               </ScrollView>
             )}
 
+            {/* 카테고리 필터 (데이터에 있는 것만 노출) */}
+            {categories.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.regionRow}>
+                <Pressable
+                  onPress={() => setCategory(null)}
+                  style={[styles.regionChip, category === null && styles.categoryChipActive]}
+                >
+                  <Text style={[styles.regionText, category === null && styles.regionTextActive]}>전체 카테고리</Text>
+                </Pressable>
+                {categories.map((c) => (
+                  <Pressable
+                    key={c}
+                    onPress={() => setCategory(category === c ? null : c)}
+                    style={[styles.regionChip, category === c && styles.categoryChipActive]}
+                  >
+                    <Text style={[styles.regionText, category === c && styles.regionTextActive]}>{c}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+
             <View style={styles.sortRow}>
               {SORTS.map((s) => (
                 <Pressable
@@ -362,6 +396,7 @@ const styles = StyleSheet.create({
   regionChipActive: { backgroundColor: '#FF7A45', borderColor: '#FF7A45' },
   districtChip: {},
   districtChipActive: { backgroundColor: '#E17055', borderColor: '#E17055' },
+  categoryChipActive: { backgroundColor: '#6C5CE7', borderColor: '#6C5CE7' },
   regionText: { fontSize: 13, color: '#555' },
   regionTextActive: { color: '#fff', fontWeight: '600' },
   sortRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 10 },

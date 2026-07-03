@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Platform,
   Pressable,
+  ScrollView,
   Share,
   StyleSheet,
   Text,
@@ -16,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Avatar from '@/components/Avatar';
 import RestaurantCard from '@/components/RestaurantCard';
 import SearchBar from '@/components/SearchBar';
+import { CATEGORIES, PROVINCES, inferDistrictFromAddress, inferProvinceFromAddress } from '@/constants/filters';
 import { notify } from '@/lib/confirm';
 import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
@@ -43,6 +45,9 @@ export default function UserListScreen() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [copiedIds, setCopiedIds] = useState<Set<string>>(new Set());
+  const [province, setProvince] = useState<string | null>(null);
+  const [district, setDistrict] = useState<string | null>(null);
+  const [category, setCategory] = useState<string | null>(null);
 
   const isMyList = id === user?.id;
   const myNames = new Set(myRestaurants.map((r) => r.name));
@@ -90,6 +95,36 @@ export default function UserListScreen() {
     }
   }
 
+  // 이 리스트에 실제로 있는 시/도·구·카테고리만 필터로 노출
+  const provinces = useMemo(() => {
+    const set = new Set<string>();
+    items.forEach((r) => {
+      const p = inferProvinceFromAddress(r.address);
+      if (p) set.add(p);
+    });
+    return PROVINCES.filter((p) => set.has(p));
+  }, [items]);
+
+  const districts = useMemo(() => {
+    const set = new Set<string>();
+    items.forEach((r) => {
+      if (province && !(r.address ?? '').includes(province)) return;
+      const d = inferDistrictFromAddress(r.address);
+      if (d) set.add(d);
+    });
+    return Array.from(set).sort();
+  }, [items, province]);
+
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    items.forEach((r) => {
+      if (r.category) set.add(r.category);
+    });
+    const known = CATEGORIES.filter((c) => set.has(c));
+    const extra = [...set].filter((c) => !CATEGORIES.includes(c)).sort();
+    return [...known, ...extra];
+  }, [items]);
+
   async function shareList() {
     const url = `${SITE}/user/${id}`;
     if (Platform.OS === 'web') {
@@ -113,9 +148,17 @@ export default function UserListScreen() {
   }
 
   const q = query.trim().toLowerCase();
-  const filtered = q
-    ? items.filter((r) => `${r.name} ${r.area ?? ''} ${r.memo ?? ''}`.toLowerCase().includes(q))
-    : items;
+  const filtered = items.filter((r) => {
+    if (q && !`${r.name} ${r.area ?? ''} ${r.memo ?? ''}`.toLowerCase().includes(q)) return false;
+    if (province && !(r.address ?? '').includes(province)) return false;
+    if (district) {
+      const inDist = r.address?.includes(district);
+      const inArea = r.area === district;
+      if (!inDist && !inArea) return false;
+    }
+    if (category && r.category !== category) return false;
+    return true;
+  });
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
@@ -191,6 +234,74 @@ export default function UserListScreen() {
             )}
 
             <SearchBar value={query} onChangeText={setQuery} />
+
+            {/* 지역 필터 (이 리스트에 있는 시/도만) */}
+            {provinces.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                <Pressable
+                  onPress={() => { setProvince(null); setDistrict(null); }}
+                  style={[styles.chip, province === null && styles.chipActiveRegion]}
+                >
+                  <Text style={[styles.chipText, province === null && styles.chipTextActive]}>전체 지역</Text>
+                </Pressable>
+                {provinces.map((p) => (
+                  <Pressable
+                    key={p}
+                    onPress={() => { setProvince(province === p ? null : p); setDistrict(null); }}
+                    style={[styles.chip, province === p && styles.chipActiveRegion]}
+                  >
+                    <Text style={[styles.chipText, province === p && styles.chipTextActive]}>{p}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+
+            {/* 구 (시/도 선택 시) */}
+            {province && districts.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                <Pressable
+                  onPress={() => setDistrict(null)}
+                  style={[styles.chip, district === null && styles.chipActiveDistrict]}
+                >
+                  <Text style={[styles.chipText, district === null && styles.chipTextActive]}>{province} 전체</Text>
+                </Pressable>
+                {districts.map((d) => (
+                  <Pressable
+                    key={d}
+                    onPress={() => setDistrict(district === d ? null : d)}
+                    style={[styles.chip, district === d && styles.chipActiveDistrict]}
+                  >
+                    <Text style={[styles.chipText, district === d && styles.chipTextActive]}>{d}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+
+            {/* 카테고리 필터 (이 리스트에 있는 것만) */}
+            {categories.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                <Pressable
+                  onPress={() => setCategory(null)}
+                  style={[styles.chip, category === null && styles.chipActiveCategory]}
+                >
+                  <Text style={[styles.chipText, category === null && styles.chipTextActive]}>전체 카테고리</Text>
+                </Pressable>
+                {categories.map((c) => (
+                  <Pressable
+                    key={c}
+                    onPress={() => setCategory(category === c ? null : c)}
+                    style={[styles.chip, category === c && styles.chipActiveCategory]}
+                  >
+                    <Text style={[styles.chipText, category === c && styles.chipTextActive]}>{c}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+
+            {/* 필터 결과 개수 */}
+            {(province || district || category || q) ? (
+              <Text style={styles.countText}>맛집 {filtered.length}개</Text>
+            ) : null}
           </>
         }
         ListEmptyComponent={
@@ -279,4 +390,17 @@ const styles = StyleSheet.create({
   shareBtnText: { color: '#6C5CE7', fontSize: 14, fontWeight: '700' },
   emptyBox: { alignItems: 'center', paddingTop: 60 },
   emptySub: { fontSize: 14, color: '#aaa' },
+
+  // 필터 칩
+  chipRow: { paddingHorizontal: 16, paddingVertical: 4, gap: 8, flexDirection: 'row', alignItems: 'center' },
+  chip: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: '#ddd',
+    backgroundColor: '#fff',
+  },
+  chipActiveRegion: { backgroundColor: '#FF7A45', borderColor: '#FF7A45' },
+  chipActiveDistrict: { backgroundColor: '#E17055', borderColor: '#E17055' },
+  chipActiveCategory: { backgroundColor: '#6C5CE7', borderColor: '#6C5CE7' },
+  chipText: { fontSize: 13, color: '#555' },
+  chipTextActive: { color: '#fff', fontWeight: '600' },
+  countText: { fontSize: 12, color: '#aaa', paddingHorizontal: 16, paddingTop: 6 },
 });

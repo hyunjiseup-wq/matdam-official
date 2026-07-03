@@ -1,11 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useEffect } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -16,6 +18,7 @@ import RestaurantCard from '@/components/RestaurantCard';
 import SearchBar from '@/components/SearchBar';
 import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
+import { DiscoverItem } from '@/types/restaurant';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -28,7 +31,70 @@ export default function HomeScreen() {
     setSearchQuery,
     toggleVisited,
     toggleWishlist,
+    getProfile,
+    getDiscoverFeed,
   } = useRestaurants();
+
+  // ── 관심 지역 추천 ──────────────────────────────────────────────
+  const [region, setRegion] = useState<string>('');
+  const [recs, setRecs] = useState<DiscoverItem[]>([]);
+  const feedCache = useRef<DiscoverItem[] | null>(null);
+
+  const buildRecs = useCallback(
+    (feed: DiscoverItem[], regionInput: string) => {
+      const tokens = regionInput
+        .split(/[,/·]+/)
+        .map((t) => t.trim())
+        .filter((t) => t.length >= 2);
+      if (tokens.length === 0) return [] as DiscoverItem[];
+
+      // 내 리스트에 이미 있는 맛집은 제외 (이름 기준)
+      const mine = new Set(restaurants.map((r) => r.name.replace(/\s+/g, '')));
+
+      return feed
+        .filter((it) => {
+          const text = `${it.address ?? ''} ${it.area ?? ''}`;
+          if (!tokens.some((t) => text.includes(t))) return false;
+          if (mine.has(it.name.replace(/\s+/g, ''))) return false;
+          return true;
+        })
+        .sort(
+          (a, b) =>
+            b.addedCount - a.addedCount ||
+            b.avgRating - a.avgRating ||
+            b.reviewCount - a.reviewCount,
+        )
+        .slice(0, 10);
+    },
+    [restaurants],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) return;
+      let alive = true;
+      (async () => {
+        try {
+          const p = await getProfile(user.id);
+          const reg = (p?.preferred_region ?? '').trim();
+          if (!alive) return;
+          setRegion(reg);
+          if (!reg) {
+            setRecs([]);
+            return;
+          }
+          if (!feedCache.current) feedCache.current = await getDiscoverFeed();
+          if (!alive) return;
+          setRecs(buildRecs(feedCache.current, reg));
+        } catch {
+          // 추천 실패는 조용히 무시 (홈 핵심 기능 아님)
+        }
+      })();
+      return () => {
+        alive = false;
+      };
+    }, [user?.id, getProfile, getDiscoverFeed, buildRecs]),
+  );
 
   // 첫 로그인 시 사용법 가이드 1회 자동 노출
   useEffect(() => {
@@ -97,6 +163,55 @@ export default function HomeScreen() {
               </View>
               <Ionicons name="chevron-forward" size={20} color="#fff" />
             </Pressable>
+
+            {/* 관심 지역 추천 */}
+            {region && recs.length > 0 && (
+              <View style={styles.recSection}>
+                <View style={styles.recHead}>
+                  <Text style={styles.recTitle}>📍 {region} 추천 맛집</Text>
+                  <Pressable onPress={() => router.push('/profile' as any)} hitSlop={6}>
+                    <Text style={styles.recEdit}>지역 변경</Text>
+                  </Pressable>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recRow}>
+                  {recs.map((it) => (
+                    <Pressable
+                      key={it.key}
+                      style={styles.recCard}
+                      onPress={() => router.push(`/detail/${it.representativeId}`)}
+                    >
+                      {it.image_url ? (
+                        <Image source={{ uri: it.image_url }} style={styles.recImg} />
+                      ) : (
+                        <View style={[styles.recImg, styles.recImgEmpty]}>
+                          <Text style={{ fontSize: 26 }}>🍽️</Text>
+                        </View>
+                      )}
+                      <View style={styles.recBody}>
+                        <Text style={styles.recName} numberOfLines={1}>{it.name}</Text>
+                        <Text style={styles.recMeta} numberOfLines={1}>
+                          {it.category || '음식점'}{it.area ? ` · ${it.area}` : ''}
+                        </Text>
+                        <Text style={styles.recStat}>
+                          🔥 {it.addedCount}명 담음{it.avgRating > 0 ? `  ★ ${it.avgRating.toFixed(1)}` : ''}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* 관심 지역 미설정 힌트 */}
+            {!region && !isEmpty && (
+              <Pressable style={styles.regionHintRow} onPress={() => router.push('/profile' as any)}>
+                <Ionicons name="location-outline" size={15} color="#FF7A45" />
+                <Text style={styles.regionHintText}>
+                  관심 지역을 설정하면 여기에 추천 맛집이 떠요
+                </Text>
+                <Ionicons name="chevron-forward" size={14} color="#ccc" />
+              </Pressable>
+            )}
 
             {!isEmpty && (
               <>
@@ -171,6 +286,46 @@ const styles = StyleSheet.create({
   exploreSub: { color: '#E0DBFF', fontSize: 12, marginTop: 2 },
   discoverSub: { color: '#FFE4D6', fontSize: 12, marginTop: 2 },
   countRow: { paddingHorizontal: 16, paddingBottom: 4, paddingTop: 2 },
+  recSection: { marginTop: 8, marginBottom: 4 },
+  recHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  recTitle: { fontSize: 15, fontWeight: '800', color: '#1a1a1a' },
+  recEdit: { fontSize: 12, color: '#FF7A45', fontWeight: '600' },
+  recRow: { paddingHorizontal: 16, gap: 10 },
+  recCard: {
+    width: 150,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  recImg: { width: '100%', height: 92, backgroundColor: '#f0f0f0' },
+  recImgEmpty: { alignItems: 'center', justifyContent: 'center' },
+  recBody: { padding: 10, gap: 2 },
+  recName: { fontSize: 13, fontWeight: '700', color: '#222' },
+  recMeta: { fontSize: 11, color: '#999' },
+  recStat: { fontSize: 11, color: '#FF7A45', fontWeight: '600', marginTop: 2 },
+  regionHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#FFF7F3',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FFE4D6',
+  },
+  regionHintText: { flex: 1, fontSize: 12, color: '#B8734F' },
   countText: { fontSize: 12, color: '#aaa' },
   emptyBox: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 32, gap: 8 },
   emptyEmoji: { fontSize: 56 },

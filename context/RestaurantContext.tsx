@@ -59,7 +59,7 @@ interface RestaurantContextType {
   getDiscoverFeed: () => Promise<DiscoverItem[]>;
   getMyInfluence: () => Promise<MyInfluence>;
   getProfile: (userId: string) => Promise<Profile | null>;
-  updateProfile: (patch: { display_name?: string; bio?: string; sns_url?: string; avatar_url?: string }) => Promise<void>;
+  updateProfile: (patch: { display_name?: string; bio?: string; sns_url?: string; avatar_url?: string; preferred_region?: string }) => Promise<void>;
   likeList: (ownerId: string) => Promise<void>;
   unlikeList: (ownerId: string) => Promise<void>;
   incrementProfileView: (ownerId: string) => Promise<void>;
@@ -662,7 +662,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const updateProfile = useCallback(
-    async (patch: { display_name?: string; bio?: string; sns_url?: string; avatar_url?: string }) => {
+    async (patch: { display_name?: string; bio?: string; sns_url?: string; avatar_url?: string; preferred_region?: string }) => {
       if (!userId) throw new Error('로그인이 필요합니다');
       const { error: err } = await supabase
         .from('profiles')
@@ -671,6 +671,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
           ...(patch.bio !== undefined && { bio: patch.bio || null }),
           ...(patch.sns_url !== undefined && { sns_url: patch.sns_url || null }),
           ...(patch.avatar_url !== undefined && { avatar_url: patch.avatar_url || null }),
+          ...(patch.preferred_region !== undefined && { preferred_region: patch.preferred_region || null }),
         })
         .eq('id', userId);
       if (err) throw new Error(err.message);

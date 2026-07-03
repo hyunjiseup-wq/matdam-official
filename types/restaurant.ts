@@ -38,6 +38,7 @@ export interface Profile {
   bio?: string;
   sns_url?: string;
   avatar_url?: string;
+  preferred_region?: string; // 관심 지역 (홈 추천, 예: "제주, 성수")
   view_count?: number;
   created_at: string;
   count?: number;      // 보유 맛집 수 (클라이언트 계산)

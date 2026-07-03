@@ -28,6 +28,7 @@ export default function ProfileScreen() {
   const [bio, setBio] = useState('');
   const [snsUrl, setSnsUrl] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [preferredRegion, setPreferredRegion] = useState('');
   const [influence, setInfluence] = useState<MyInfluence | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -42,6 +43,7 @@ export default function ProfileScreen() {
         setBio(p.bio ?? '');
         setSnsUrl(p.sns_url ?? '');
         setAvatarUrl(p.avatar_url ?? '');
+        setPreferredRegion(p.preferred_region ?? '');
       }
       setInfluence(inf);
       setLoading(false);
@@ -80,7 +82,7 @@ export default function ProfileScreen() {
     }
     setSaving(true);
     try {
-      await updateProfile({ display_name: name.trim(), bio: bio.trim(), sns_url: snsUrl.trim(), avatar_url: avatarUrl.trim() });
+      await updateProfile({ display_name: name.trim(), bio: bio.trim(), sns_url: snsUrl.trim(), avatar_url: avatarUrl.trim(), preferred_region: preferredRegion.trim() });
       notify('저장 완료!', '프로필이 업데이트됐어요.');
       router.back();
     } catch (e: any) {
@@ -174,6 +176,18 @@ export default function ProfileScreen() {
             numberOfLines={3}
             textAlignVertical="top"
           />
+
+          <Text style={styles.label}>📍 관심 지역 (홈에 추천 맛집이 떠요)</Text>
+          <TextInput
+            style={styles.input}
+            value={preferredRegion}
+            onChangeText={setPreferredRegion}
+            placeholder="예: 제주  /  성수, 연남  /  강릉"
+            placeholderTextColor="#bbb"
+          />
+          <Text style={styles.regionHint}>
+            여행 갈 곳이나 자주 가는 동네를 적어두세요. 쉼표로 여러 곳도 가능해요.
+          </Text>
 
           <Text style={styles.label}>SNS 링크 (인스타 등)</Text>
           <TextInput
@@ -271,6 +285,7 @@ const styles = StyleSheet.create({
     borderColor: '#eee',
   },
   textarea: { height: 80, paddingTop: 12 },
+  regionHint: { fontSize: 11, color: '#aaa', marginTop: 6, lineHeight: 15 },
   saveBtn: {
     flexDirection: 'row',
     alignItems: 'center',

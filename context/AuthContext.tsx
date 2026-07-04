@@ -41,6 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAdmin = isAdminEmail(user?.email);
 
   // 로그인 시 profiles 테이블에 내 정보 등록 (다른 사람이 내 리스트를 찾을 수 있도록)
+  // is_admin은 보안상 클라이언트가 쓰지 않는다 — DB에서만 관리 (RLS 컬럼 잠금)
   useEffect(() => {
     if (!user) return;
     supabase
@@ -48,12 +49,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .upsert({
         id: user.id,
         display_name: displayName,
-        is_admin: isAdmin,
       })
       .then(({ error }) => {
         if (error) console.warn('[Profile] upsert error:', error.message);
       });
-  }, [user?.id, displayName, isAdmin]);
+  }, [user?.id, displayName]);
 
   const signIn = useCallback(async (id: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({

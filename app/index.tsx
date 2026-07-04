@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -38,7 +38,6 @@ export default function HomeScreen() {
   // ── 관심 지역 추천 ──────────────────────────────────────────────
   const [region, setRegion] = useState<string>('');
   const [recs, setRecs] = useState<DiscoverItem[]>([]);
-  const feedCache = useRef<DiscoverItem[] | null>(null);
 
 
   const buildRecs = useCallback(
@@ -84,9 +83,9 @@ export default function HomeScreen() {
             setRecs([]);
             return;
           }
-          if (!feedCache.current) feedCache.current = await getDiscoverFeed();
+          const feed = await getDiscoverFeed(); // 컨텍스트에서 60초 캐시됨
           if (!alive) return;
-          setRecs(buildRecs(feedCache.current, reg));
+          setRecs(buildRecs(feed, reg));
         } catch {
           // 추천 실패는 조용히 무시 (홈 핵심 기능 아님)
         }

@@ -1,6 +1,6 @@
 export const AREAS = ['성수', '홍대', '합정', '연남', '을지로', '종로', '강남', '압구정', '이태원', '용산', '건대', '신촌', '강동'];
 
-export const CATEGORIES = ['음식점', '한식', '한식/고기', '일식', '횟집', '중식', '양식', 'BAR', '카페', '분식', '디저트', '쇼핑', '생활/문화'];
+export const CATEGORIES = ['음식점', '한식', '한식/고기', '일식', '횟집', '중식', '양식', '아시안', 'BAR', '카페', '분식', '디저트', '쇼핑', '생활/문화'];
 
 export const CATEGORY_COLORS: Record<string, string> = {
   '음식점': '#E17055',
@@ -10,6 +10,7 @@ export const CATEGORY_COLORS: Record<string, string> = {
   '횟집': '#00A8B5',
   '중식': '#F39C12',
   '양식': '#6C5CE7',
+  '아시안': '#6AB04C',
   'BAR': '#E84393',
   '카페': '#00B894',
   '분식': '#F39C12',
@@ -27,6 +28,7 @@ export const CATEGORY_BG: Record<string, string> = {
   '횟집': '#E4F7F9',
   '중식': '#FFFBEF',
   '양식': '#F0EEFF',
+  '아시안': '#F0F9EA',
   'BAR': '#FFF0FA',
   '카페': '#E8FFF9',
   '분식': '#FFF8E8',

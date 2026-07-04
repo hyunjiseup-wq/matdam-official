@@ -1,13 +1,13 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
-import { inferAreaFromAddress, inferDistrictFromAddress } from '@/constants/filters';
+import { inferDistrictFromAddress } from '@/constants/filters';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import {
@@ -24,7 +24,6 @@ import {
   Review,
   VisitedFilter,
 } from '@/types/restaurant';
-import rawSeedData from '@/seoul_restaurant_app_starter/restaurants_from_json.json';
 
 // ── 타입 ─────────────────────────────────────────────────────────────────────
 
@@ -93,6 +92,10 @@ interface RestaurantContextType {
 const RESTAURANT_COLUMNS =
   'id, owner_id, name, area, category, address, naver_map_url, map_source, image_url, tags, memo, price_range, menus, lat, lng, visited, wishlist, priority, created_at, updated_at';
 
+// 전체 피드용 경량 컬럼 — menus(전체 용량의 절반)·tags·memo 등 카드에 안 쓰는 필드 제외
+const DISCOVER_COLUMNS =
+  'id, owner_id, name, area, category, address, image_url, map_source, price_range, lat, lng, visited, priority';
+
 type SupabaseRow = {
   id: string;
   owner_id: string | null;
@@ -153,23 +156,6 @@ function groupKeyOf(r: { name: string; address?: string | null; area?: string | 
   return `${normalizeName(r.name)}|${region}`;
 }
 
-// ── 초기 시드 (관리자 전용) ───────────────────────────────────────────────────
-
-const SEEDED_KEY = '@supabase_seeded';
-
-interface RawItem {
-  id: number | string;
-  name: string;
-  area?: string;
-  category?: string;
-  address?: string;
-  naver_map_url?: string;
-  tags?: string | string[];
-  memo?: string;
-  visited?: boolean;
-  priority?: number;
-}
-
 function makeUUID(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -178,60 +164,6 @@ function makeUUID(): string {
     const r = (Math.random() * 16) | 0;
     return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
   });
-}
-
-async function seedIfEmpty(ownerId: string) {
-  const already = await AsyncStorage.getItem(SEEDED_KEY);
-  if (already) return;
-
-  const { count, error: countError } = await supabase
-    .from('seoul_restaurants')
-    .select('*', { count: 'exact', head: true });
-
-  if (countError) {
-    console.warn('[Seed] Supabase error:', countError.message);
-    return;
-  }
-
-  if (count && count > 0) {
-    await AsyncStorage.setItem(SEEDED_KEY, 'true');
-    return;
-  }
-
-  const rows = (rawSeedData as RawItem[]).map((r) => {
-    const tags = Array.isArray(r.tags)
-      ? r.tags.filter(Boolean)
-      : typeof r.tags === 'string' && r.tags.trim()
-      ? r.tags.split(',').map((t) => t.trim()).filter(Boolean)
-      : null;
-    const area = r.area || inferAreaFromAddress(r.address) || null;
-    return {
-      id: makeUUID(),
-      owner_id: ownerId,
-      name: r.name,
-      area,
-      category: r.category || null,
-      address: r.address || null,
-      naver_map_url: r.naver_map_url || null,
-      image_url: null,
-      tags: tags && tags.length > 0 ? tags : null,
-      memo: r.memo || null,
-      visited: false,
-      priority: r.priority ?? 3,
-    };
-  });
-
-  let allOk = true;
-  for (let i = 0; i < rows.length; i += 50) {
-    const { error } = await supabase.from('seoul_restaurants').insert(rows.slice(i, i + 50));
-    if (error) {
-      console.warn('[Seed] Insert error:', error.message);
-      allOk = false;
-      break;
-    }
-  }
-
-  if (allOk) await AsyncStorage.setItem(SEEDED_KEY, 'true');
 }
 
 async function claimUnowned(ownerId: string) {
@@ -261,6 +193,12 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [visitedFilter, setVisitedFilter] = useState<VisitedFilter>('all');
 
+  // 전체 피드 캐시 (60초) — 탭 전환마다 316행을 다시 받지 않도록
+  const discoverCacheRef = useRef<{ at: number; data: DiscoverItem[] } | null>(null);
+  const invalidateDiscoverCache = useCallback(() => {
+    discoverCacheRef.current = null;
+  }, []);
+
   const fetchMine = useCallback(async (uid: string) => {
     const { data, error: err } = await supabase
       .from('seoul_restaurants')
@@ -286,7 +224,6 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
     (async () => {
       setLoading(true);
       if (isAdmin) {
-        await seedIfEmpty(userId);
         await claimUnowned(userId);
       }
       if (!cancelled) await fetchMine(userId);
@@ -385,9 +322,10 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
 
       if (err) throw new Error(err.message);
       setRestaurants((prev) => [fromRow(row as SupabaseRow), ...prev]);
+      invalidateDiscoverCache();
       return newId;
     },
-    [userId],
+    [userId, invalidateDiscoverCache],
   );
 
   const updateRestaurant = useCallback(
@@ -420,8 +358,9 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       setRestaurants((prev) =>
         prev.map((r) => (r.id === id ? { ...r, ...data, updated_at: new Date().toISOString() } : r)),
       );
+      invalidateDiscoverCache();
     },
-    [userId],
+    [userId, invalidateDiscoverCache],
   );
 
   const deleteRestaurant = useCallback(
@@ -434,8 +373,9 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
         .eq('owner_id', userId);
       if (err) throw new Error(err.message);
       setRestaurants((prev) => prev.filter((r) => r.id !== id));
+      invalidateDiscoverCache();
     },
-    [userId],
+    [userId, invalidateDiscoverCache],
   );
 
   const toggleVisited = useCallback(
@@ -487,9 +427,10 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
 
       if (err) throw new Error(err.message);
       setRestaurants((prev) => [fromRow(row as SupabaseRow), ...prev]);
+      invalidateDiscoverCache();
       return newId;
     },
-    [userId],
+    [userId, invalidateDiscoverCache],
   );
 
   // ── 둘러보기 / 프로필 ─────────────────────────────────────────────────────
@@ -542,8 +483,11 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
 
   // ── 전체 맛집 통합 피드 (사용자 구분 없이 한 곳에서) ───────────────────────
   const getDiscoverFeed = useCallback(async (): Promise<DiscoverItem[]> => {
+    const cached = discoverCacheRef.current;
+    if (cached && Date.now() - cached.at < 60_000) return cached.data;
+
     const [rowsRes, profsRes, likesRes, reviewsRes] = await Promise.all([
-      supabase.from('seoul_restaurants').select(RESTAURANT_COLUMNS),
+      supabase.from('seoul_restaurants').select(DISCOVER_COLUMNS),
       supabase.from('profiles').select('id, display_name, is_admin, sns_url, avatar_url'),
       supabase.from('list_likes').select('owner_id'),
       supabase.from('restaurant_reviews').select('restaurant_id, rating'),
@@ -568,9 +512,9 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       ratingsByRid.set(rv.restaurant_id, arr);
     }
 
-    // 그룹핑 (이름 + 지역)
+    // 그룹핑 (이름 + 지역) — 경량 컬럼이라 menus 등은 비어있음 (피드 카드에 불필요)
     const groups = new Map<string, Restaurant[]>();
-    for (const row of (rowsRes.data ?? []) as SupabaseRow[]) {
+    for (const row of (rowsRes.data ?? []) as unknown as SupabaseRow[]) {
       const r = fromRow(row);
       if (!r.owner_id) continue;
       const key = groupKeyOf(r);
@@ -641,6 +585,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       });
     }
 
+    discoverCacheRef.current = { at: Date.now(), data: items };
     return items;
   }, []);
 

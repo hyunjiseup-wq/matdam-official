@@ -21,6 +21,8 @@ export interface Restaurant {
   memo?: string;
   price_range?: string; // 만원 이하 | 1~2만원 | 2~4만원 | 4만원 이상
   menus?: MenuItem[]; // 네이버에서 자동 추출한 메뉴 목록
+  lat?: number; // 좌표 (지도 뷰 + 거리순)
+  lng?: number;
   visited: boolean;
   wishlist: boolean;
   priority: number;
@@ -106,6 +108,8 @@ export interface DiscoverItem {
   image_url?: string;
   map_source?: MapSource;
   price_range?: string;
+  lat?: number;
+  lng?: number;
   addedCount: number;      // 이 맛집을 담은 사용자 수 (인기)
   visitedCount: number;    // 방문 체크한 사용자 수
   avgRating: number;       // 리뷰 평균 별점 (없으면 0)
@@ -113,7 +117,7 @@ export interface DiscoverItem {
   topOwners: OwnerRef[];   // 인기순 상위 3명
 }
 
-export type DiscoverSort = 'popular' | 'rating' | 'visited';
+export type DiscoverSort = 'popular' | 'rating' | 'visited' | 'nearby';
 
 // ── 테마 컬렉션 (큐레이션) ────────────────────────────────────────────────────
 

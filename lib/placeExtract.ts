@@ -16,6 +16,8 @@ export interface ExtractedPlace {
   map_source?: MapSource;
   price_range?: string; // 메뉴 가격 중앙값으로 추정
   menus?: MenuItem[]; // 메뉴 목록 (구글 링크도 네이버에서 찾아 보강)
+  lat?: number | null; // 좌표 (지도 뷰용)
+  lng?: number | null;
   ai: boolean; // AI로 구조화됐는지 (false면 og태그만으로 채운 것)
 }
 

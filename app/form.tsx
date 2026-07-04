@@ -105,6 +105,8 @@ type FormData = {
   memo: string;
   price_range: string;
   menus: MenuItem[];
+  lat?: number;
+  lng?: number;
   visited: boolean;
   wishlist: boolean;
   priority: number;
@@ -153,6 +155,8 @@ export default function FormScreen() {
         memo: existing.memo ?? '',
         price_range: existing.price_range ?? '',
         menus: existing.menus ?? [],
+        lat: existing.lat,
+        lng: existing.lng,
         visited: existing.visited,
         wishlist: existing.wishlist,
         priority: existing.priority,
@@ -184,6 +188,8 @@ export default function FormScreen() {
         map_source: d.map_source || prev.map_source,
         price_range: d.price_range || prev.price_range,
         menus: d.menus && d.menus.length > 0 ? d.menus : prev.menus,
+        lat: d.lat ?? prev.lat,
+        lng: d.lng ?? prev.lng,
       }));
       const menuNote =
         d.menus && d.menus.length > 0 ? `\n메뉴 ${d.menus.length}개도 함께 저장돼요. 🍽️` : '';
@@ -248,6 +254,8 @@ export default function FormScreen() {
       memo: form.memo.trim() || undefined,
       price_range: form.price_range || undefined,
       menus: form.menus.length > 0 ? form.menus : undefined,
+      lat: form.lat,
+      lng: form.lng,
       visited: form.visited,
       wishlist: form.wishlist,
       priority: form.priority,

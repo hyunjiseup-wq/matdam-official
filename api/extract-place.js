@@ -59,6 +59,8 @@ module.exports = async (req, res) => {
             map_source: 'naver',
             price_range: parsed.price_range,
             menus: parsed.menus,
+            lat: parsed.lat,
+            lng: parsed.lng,
             ai: false,
           });
         }
@@ -86,6 +88,8 @@ module.exports = async (req, res) => {
           map_source: 'google',
           price_range: (enrich && enrich.price_range) || '',
           menus: (enrich && enrich.menus) || [],
+          lat: g.lat ?? (enrich && enrich.lat) ?? null,
+          lng: g.lng ?? (enrich && enrich.lng) ?? null,
           ai: false,
         });
       }
@@ -180,6 +184,15 @@ async function parseNaverByPlaceId(id) {
   const address = clean(g('address')); // 지번 (도로명 없을 때 대비)
   const naverCategory = clean(g('category'));
 
+  // 좌표: coordinate 객체의 x(경도)/y(위도)
+  let lat = null;
+  let lng = null;
+  const coord = html.match(/"coordinate":\{"__typename":"Coordinate","x":"(-?[\d.]+)","y":"(-?[\d.]+)"/);
+  if (coord) {
+    lng = parseFloat(coord[1]);
+    lat = parseFloat(coord[2]);
+  }
+
   return {
     name,
     address: roadAddress || address,
@@ -187,6 +200,8 @@ async function parseNaverByPlaceId(id) {
     image_url: firstPlaceImage(html),
     price_range: estimatePriceRange(html),
     menus: extractMenus(html),
+    lat,
+    lng,
   };
 }
 
@@ -316,10 +331,16 @@ async function parseGoogle(finalUrl, html) {
   }
 
   let address = '';
+  let lat = null;
+  let lng = null;
   const mLL = finalUrl.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
-  if (mLL) address = await reverseGeocode(mLL[1], mLL[2]);
+  if (mLL) {
+    lat = parseFloat(mLL[1]);
+    lng = parseFloat(mLL[2]);
+    address = await reverseGeocode(mLL[1], mLL[2]);
+  }
 
-  return { name, address };
+  return { name, address, lat, lng };
 }
 
 // 좌표 → 한국 주소 (OSM Nominatim, 무료·키 불필요)

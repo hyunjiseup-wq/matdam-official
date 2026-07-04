@@ -91,7 +91,7 @@ interface RestaurantContextType {
 // ── Supabase 행 변환 ─────────────────────────────────────────────────────────
 
 const RESTAURANT_COLUMNS =
-  'id, owner_id, name, area, category, address, naver_map_url, map_source, image_url, tags, memo, price_range, menus, visited, wishlist, priority, created_at, updated_at';
+  'id, owner_id, name, area, category, address, naver_map_url, map_source, image_url, tags, memo, price_range, menus, lat, lng, visited, wishlist, priority, created_at, updated_at';
 
 type SupabaseRow = {
   id: string;
@@ -107,6 +107,8 @@ type SupabaseRow = {
   memo: string | null;
   price_range: string | null;
   menus: MenuItem[] | null;
+  lat: number | null;
+  lng: number | null;
   visited: boolean | null;
   wishlist: boolean | null;
   priority: number;
@@ -129,6 +131,8 @@ function fromRow(row: SupabaseRow): Restaurant {
     memo: row.memo ?? undefined,
     price_range: row.price_range ?? undefined,
     menus: row.menus && row.menus.length > 0 ? row.menus : undefined,
+    lat: row.lat ?? undefined,
+    lng: row.lng ?? undefined,
     visited: row.visited ?? false,
     wishlist: row.wishlist ?? false,
     priority: row.priority,
@@ -370,6 +374,8 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
           memo: data.memo ?? null,
           price_range: data.price_range ?? null,
           menus: data.menus && data.menus.length > 0 ? data.menus : null,
+          lat: data.lat ?? null,
+          lng: data.lng ?? null,
           visited: data.visited ?? false,
           wishlist: data.wishlist ?? false,
           priority: data.priority,
@@ -401,6 +407,8 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
           ...(data.memo !== undefined && { memo: data.memo ?? null }),
           ...(data.price_range !== undefined && { price_range: data.price_range ?? null }),
           ...(data.menus !== undefined && { menus: data.menus && data.menus.length > 0 ? data.menus : null }),
+          ...(data.lat !== undefined && { lat: data.lat ?? null }),
+          ...(data.lng !== undefined && { lng: data.lng ?? null }),
           ...(data.visited !== undefined && { visited: data.visited }),
           ...(data.wishlist !== undefined && { wishlist: data.wishlist }),
           ...(data.priority !== undefined && { priority: data.priority }),
@@ -468,6 +476,8 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
           memo: src.memo ?? null,
           price_range: src.price_range ?? null,
           menus: src.menus && src.menus.length > 0 ? src.menus : null,
+          lat: src.lat ?? null,
+          lng: src.lng ?? null,
           visited: false,
           wishlist: true,
           priority: src.priority,
@@ -621,6 +631,8 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
         image_url: list.find((r) => r.image_url)?.image_url ?? rep.image_url,
         map_source: rep.map_source,
         price_range: list.find((r) => r.price_range)?.price_range ?? rep.price_range,
+        lat: list.find((r) => r.lat != null)?.lat ?? rep.lat,
+        lng: list.find((r) => r.lng != null)?.lng ?? rep.lng,
         addedCount: owners.size,
         visitedCount,
         avgRating: n ? sum / n : 0,

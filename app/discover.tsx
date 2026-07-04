@@ -16,6 +16,7 @@ import Avatar from '@/components/Avatar';
 import ChipRow from '@/components/ChipRow';
 import SearchBar from '@/components/SearchBar';
 import { CATEGORIES, PROVINCES, inferDistrictFromAddress, inferProvinceFromAddress } from '@/constants/filters';
+import { notify } from '@/lib/confirm';
 import { useRestaurants } from '@/context/RestaurantContext';
 import { DiscoverItem, DiscoverSort, OwnerRef, Profile } from '@/types/restaurant';
 
@@ -23,14 +24,34 @@ const SORTS: { key: DiscoverSort; label: string }[] = [
   { key: 'popular', label: '🔥 인기순' },
   { key: 'rating', label: '⭐ 별점순' },
   { key: 'visited', label: '👣 방문순' },
+  { key: 'nearby', label: '📍 가까운순' },
 ];
 
-function sortFeed(items: DiscoverItem[], sort: DiscoverSort): DiscoverItem[] {
+// 두 좌표 사이 거리 (km, 하버사인)
+function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function sortFeed(
+  items: DiscoverItem[],
+  sort: DiscoverSort,
+  loc: { lat: number; lng: number } | null,
+): DiscoverItem[] {
   const copy = [...items];
   if (sort === 'popular') {
     copy.sort((a, b) => b.addedCount - a.addedCount || b.avgRating - a.avgRating || b.visitedCount - a.visitedCount);
   } else if (sort === 'rating') {
     copy.sort((a, b) => b.avgRating - a.avgRating || b.reviewCount - a.reviewCount || b.addedCount - a.addedCount);
+  } else if (sort === 'nearby' && loc) {
+    const d = (it: DiscoverItem) =>
+      it.lat != null && it.lng != null ? distanceKm(loc.lat, loc.lng, it.lat, it.lng) : Infinity;
+    copy.sort((a, b) => d(a) - d(b));
   } else {
     copy.sort((a, b) => b.visitedCount - a.visitedCount || b.addedCount - a.addedCount || b.avgRating - a.avgRating);
   }
@@ -157,6 +178,27 @@ export default function DiscoverScreen() {
   const [category, setCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
+  const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
+
+  // 가까운순: 브라우저 위치 동의 후 정렬
+  const handleNearby = useCallback(() => {
+    if (userLoc) {
+      setSort('nearby');
+      return;
+    }
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      notify('안내', '이 기기에서는 위치를 사용할 수 없어요.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setSort('nearby');
+      },
+      () => notify('위치 권한 필요', '가까운순 정렬은 위치 권한을 허용해야 사용할 수 있어요.'),
+      { timeout: 8000 },
+    );
+  }, [userLoc]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -244,8 +286,8 @@ export default function DiscoverScreen() {
       if (category && it.category !== category) return false;
       return true;
     });
-    return sortFeed(filtered, sort);
-  }, [feed, q, province, district, category, sort]);
+    return sortFeed(filtered, sort, userLoc);
+  }, [feed, q, province, district, category, sort, userLoc]);
 
   if (loading) {
     return (
@@ -354,13 +396,19 @@ export default function DiscoverScreen() {
               {SORTS.map((s) => (
                 <Pressable
                   key={s.key}
-                  onPress={() => setSort(s.key)}
+                  onPress={() => (s.key === 'nearby' ? handleNearby() : setSort(s.key))}
                   style={[styles.sortChip, sort === s.key && styles.sortChipActive]}
                 >
                   <Text style={[styles.sortText, sort === s.key && styles.sortTextActive]}>{s.label}</Text>
                 </Pressable>
               ))}
             </View>
+
+            {/* 지도로 보기 */}
+            <Pressable style={styles.mapBanner} onPress={() => router.push('/map' as any)}>
+              <Text style={styles.mapBannerText}>🗺️ 지도에서 모아보기</Text>
+              <Ionicons name="chevron-forward" size={16} color="#0984E3" />
+            </Pressable>
           </>
         }
         ListEmptyComponent={
@@ -400,7 +448,21 @@ const styles = StyleSheet.create({
   categoryChipActive: { backgroundColor: '#6C5CE7', borderColor: '#6C5CE7' },
   regionText: { fontSize: 13, color: '#555' },
   regionTextActive: { color: '#fff', fontWeight: '600' },
-  sortRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
+  sortRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 10, flexWrap: 'wrap' },
+  mapBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    marginHorizontal: 16,
+    marginBottom: 10,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#EAF4FE',
+    borderWidth: 1,
+    borderColor: '#CCE4FB',
+  },
+  mapBannerText: { fontSize: 14, fontWeight: '700', color: '#0984E3' },
   sortChip: {
     flex: 1, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: '#ddd',
     backgroundColor: '#fff', alignItems: 'center',

@@ -11,6 +11,7 @@ import { inferAreaFromAddress, inferDistrictFromAddress } from '@/constants/filt
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import {
+  Collection,
   DiscoverItem,
   Feedback,
   FeedbackReply,
@@ -64,6 +65,14 @@ interface RestaurantContextType {
   likeList: (ownerId: string) => Promise<void>;
   unlikeList: (ownerId: string) => Promise<void>;
   incrementProfileView: (ownerId: string) => Promise<void>;
+  // 테마 컬렉션
+  getCollections: () => Promise<Collection[]>;
+  getCollection: (id: string) => Promise<Collection | null>;
+  getCollectionRestaurants: (collectionId: string) => Promise<Restaurant[]>;
+  createCollection: (data: { title: string; emoji?: string; description?: string }) => Promise<string>;
+  deleteCollection: (id: string) => Promise<void>;
+  addToCollection: (collectionId: string, restaurantId: string) => Promise<void>;
+  removeFromCollection: (collectionId: string, restaurantId: string) => Promise<void>;
   // 리뷰
   getReviews: (restaurantId: string) => Promise<Review[]>;
   saveReview: (restaurantId: string, rating: number, content: string) => Promise<void>;
@@ -721,6 +730,112 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
     [userId],
   );
 
+  // ── 테마 컬렉션 ────────────────────────────────────────────────────────────
+
+  const getCollections = useCallback(async (): Promise<Collection[]> => {
+    const [colsRes, itemsRes] = await Promise.all([
+      supabase.from('collections').select('*').order('sort_order').order('created_at'),
+      supabase
+        .from('collection_items')
+        .select('collection_id, restaurant:seoul_restaurants(image_url)'),
+    ]);
+    if (colsRes.error) throw new Error(colsRes.error.message);
+
+    // 컬렉션별 개수 + 사진 미리보기
+    const counts = new Map<string, number>();
+    const previews = new Map<string, string[]>();
+    type ItemRow = { collection_id: string; restaurant: { image_url: string | null } | null };
+    for (const it of (itemsRes.data ?? []) as unknown as ItemRow[]) {
+      counts.set(it.collection_id, (counts.get(it.collection_id) ?? 0) + 1);
+      const img = it.restaurant?.image_url;
+      if (img) {
+        const arr = previews.get(it.collection_id) ?? [];
+        if (arr.length < 3) arr.push(img);
+        previews.set(it.collection_id, arr);
+      }
+    }
+
+    return ((colsRes.data ?? []) as Collection[]).map((c) => ({
+      ...c,
+      itemCount: counts.get(c.id) ?? 0,
+      previewImages: previews.get(c.id) ?? [],
+    }));
+  }, []);
+
+  const getCollection = useCallback(async (id: string): Promise<Collection | null> => {
+    const { data } = await supabase.from('collections').select('*').eq('id', id).single();
+    return (data as Collection) ?? null;
+  }, []);
+
+  const getCollectionRestaurants = useCallback(
+    async (collectionId: string): Promise<Restaurant[]> => {
+      const { data, error: err } = await supabase
+        .from('collection_items')
+        .select(`created_at, restaurant:seoul_restaurants(${RESTAURANT_COLUMNS})`)
+        .eq('collection_id', collectionId)
+        .order('created_at', { ascending: true });
+      if (err) throw new Error(err.message);
+      type Row = { restaurant: SupabaseRow | null };
+      return ((data ?? []) as unknown as Row[])
+        .map((r) => r.restaurant)
+        .filter((r): r is SupabaseRow => Boolean(r))
+        .map(fromRow);
+    },
+    [],
+  );
+
+  const createCollection = useCallback(
+    async (data: { title: string; emoji?: string; description?: string }) => {
+      if (!isAdmin) throw new Error('관리자만 컬렉션을 만들 수 있어요');
+      const newId = makeUUID();
+      const { error: err } = await supabase.from('collections').insert({
+        id: newId,
+        owner_id: userId,
+        title: data.title,
+        emoji: data.emoji || null,
+        description: data.description || null,
+        is_official: true,
+      });
+      if (err) throw new Error(err.message);
+      return newId;
+    },
+    [isAdmin, userId],
+  );
+
+  const deleteCollection = useCallback(
+    async (id: string) => {
+      if (!isAdmin) throw new Error('관리자만 삭제할 수 있어요');
+      const { error: err } = await supabase.from('collections').delete().eq('id', id);
+      if (err) throw new Error(err.message);
+    },
+    [isAdmin],
+  );
+
+  const addToCollection = useCallback(
+    async (collectionId: string, restaurantId: string) => {
+      if (!isAdmin) throw new Error('관리자만 추가할 수 있어요');
+      const { error: err } = await supabase.from('collection_items').upsert(
+        { id: makeUUID(), collection_id: collectionId, restaurant_id: restaurantId },
+        { onConflict: 'collection_id,restaurant_id', ignoreDuplicates: true },
+      );
+      if (err) throw new Error(err.message);
+    },
+    [isAdmin],
+  );
+
+  const removeFromCollection = useCallback(
+    async (collectionId: string, restaurantId: string) => {
+      if (!isAdmin) throw new Error('관리자만 제거할 수 있어요');
+      const { error: err } = await supabase
+        .from('collection_items')
+        .delete()
+        .eq('collection_id', collectionId)
+        .eq('restaurant_id', restaurantId);
+      if (err) throw new Error(err.message);
+    },
+    [isAdmin],
+  );
+
   // ── 리뷰 ─────────────────────────────────────────────────────────────────
 
   const getReviews = useCallback(async (restaurantId: string): Promise<Review[]> => {
@@ -885,6 +1000,13 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       likeList,
       unlikeList,
       incrementProfileView,
+      getCollections,
+      getCollection,
+      getCollectionRestaurants,
+      createCollection,
+      deleteCollection,
+      addToCollection,
+      removeFromCollection,
       getReviews,
       saveReview,
       deleteReview,
@@ -925,6 +1047,13 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       likeList,
       unlikeList,
       incrementProfileView,
+      getCollections,
+      getCollection,
+      getCollectionRestaurants,
+      createCollection,
+      deleteCollection,
+      addToCollection,
+      removeFromCollection,
       getReviews,
       saveReview,
       deleteReview,

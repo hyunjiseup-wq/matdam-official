@@ -18,11 +18,11 @@ import RestaurantCard from '@/components/RestaurantCard';
 import SearchBar from '@/components/SearchBar';
 import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
-import { DiscoverItem } from '@/types/restaurant';
+import { Collection, DiscoverItem } from '@/types/restaurant';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const {
     restaurants,
     filteredRestaurants,
@@ -33,12 +33,33 @@ export default function HomeScreen() {
     toggleWishlist,
     getProfile,
     getDiscoverFeed,
+    getCollections,
   } = useRestaurants();
 
   // ── 관심 지역 추천 ──────────────────────────────────────────────
   const [region, setRegion] = useState<string>('');
   const [recs, setRecs] = useState<DiscoverItem[]>([]);
   const feedCache = useRef<DiscoverItem[] | null>(null);
+
+  // ── 테마 컬렉션 ─────────────────────────────────────────────────
+  const [collections, setCollections] = useState<Collection[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      (async () => {
+        try {
+          const cols = await getCollections();
+          if (alive) setCollections(cols);
+        } catch {
+          // 컬렉션 실패는 조용히 무시
+        }
+      })();
+      return () => {
+        alive = false;
+      };
+    }, [getCollections]),
+  );
 
   const buildRecs = useCallback(
     (feed: DiscoverItem[], regionInput: string) => {
@@ -202,6 +223,50 @@ export default function HomeScreen() {
               </View>
             )}
 
+            {/* 테마 컬렉션 */}
+            {(collections.some((c) => (c.itemCount ?? 0) > 0) || isAdmin) && (
+              <View style={styles.recSection}>
+                <View style={styles.recHead}>
+                  <Text style={styles.recTitle}>🧭 테마 컬렉션</Text>
+                  <Pressable onPress={() => router.push('/collections' as any)} hitSlop={6}>
+                    <Text style={styles.recEdit}>전체 보기</Text>
+                  </Pressable>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recRow}>
+                  {(isAdmin ? collections : collections.filter((c) => (c.itemCount ?? 0) > 0)).map((c) => (
+                    <Pressable
+                      key={c.id}
+                      style={styles.colCard}
+                      onPress={() => router.push(`/collection/${c.id}` as any)}
+                    >
+                      {(c.previewImages ?? [])[0] ? (
+                        <Image source={{ uri: (c.previewImages ?? [])[0] }} style={styles.colImg} />
+                      ) : (
+                        <View style={[styles.colImg, styles.recImgEmpty]}>
+                          <Text style={{ fontSize: 30 }}>{c.emoji || '🍽️'}</Text>
+                        </View>
+                      )}
+                      <View style={styles.colBody}>
+                        <Text style={styles.colTitle} numberOfLines={1}>
+                          {c.emoji ? `${c.emoji} ` : ''}{c.title}
+                        </Text>
+                        <Text style={styles.colCount}>맛집 {c.itemCount ?? 0}곳</Text>
+                      </View>
+                    </Pressable>
+                  ))}
+                  {isAdmin && (
+                    <Pressable
+                      style={[styles.colCard, styles.colAddCard]}
+                      onPress={() => router.push('/collections' as any)}
+                    >
+                      <Ionicons name="add-circle-outline" size={26} color="#6C5CE7" />
+                      <Text style={styles.colAddText}>컬렉션{'\n'}만들기</Text>
+                    </Pressable>
+                  )}
+                </ScrollView>
+              </View>
+            )}
+
             {/* 관심 지역 미설정 힌트 */}
             {!region && !isEmpty && (
               <Pressable style={styles.regionHintRow} onPress={() => router.push('/profile' as any)}>
@@ -311,6 +376,27 @@ const styles = StyleSheet.create({
   recName: { fontSize: 13, fontWeight: '700', color: '#222' },
   recMeta: { fontSize: 11, color: '#999' },
   recStat: { fontSize: 11, color: '#FF7A45', fontWeight: '600', marginTop: 2 },
+  colCard: {
+    width: 132,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  colImg: { width: '100%', height: 80, backgroundColor: '#f0f0f0' },
+  colBody: { padding: 9, gap: 2 },
+  colTitle: { fontSize: 13, fontWeight: '700', color: '#222' },
+  colCount: { fontSize: 11, color: '#FF7A45', fontWeight: '600' },
+  colAddCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    borderStyle: 'dashed',
+    borderColor: '#6C5CE7',
+    backgroundColor: '#FBFAFF',
+  },
+  colAddText: { fontSize: 12, color: '#6C5CE7', fontWeight: '600', textAlign: 'center' },
   regionHintRow: {
     flexDirection: 'row',
     alignItems: 'center',

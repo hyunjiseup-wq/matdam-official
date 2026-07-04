@@ -115,6 +115,22 @@ export interface DiscoverItem {
 
 export type DiscoverSort = 'popular' | 'rating' | 'visited';
 
+// ── 테마 컬렉션 (큐레이션) ────────────────────────────────────────────────────
+
+export interface Collection {
+  id: string;
+  owner_id?: string;
+  title: string;
+  description?: string;
+  emoji?: string;
+  cover_image_url?: string;
+  is_official: boolean;
+  sort_order: number;
+  created_at: string;
+  itemCount?: number;        // 클라이언트 계산
+  previewImages?: string[];  // 담긴 맛집 사진 미리보기 (최대 3)
+}
+
 export interface MyInfluence {
   totalAdoptions: number;  // 내 맛집을 담아간 총 횟수
   adopterCount: number;    // 내 맛집을 담은 고유 사용자 수

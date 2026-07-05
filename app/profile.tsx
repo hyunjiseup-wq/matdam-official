@@ -14,14 +14,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Avatar from '@/components/Avatar';
-import { notify } from '@/lib/confirm';
+import { confirmAction, notify } from '@/lib/confirm';
 import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
 import { MyInfluence } from '@/types/restaurant';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, displayName } = useAuth();
+  const { user, displayName, isAdmin, deleteAccount } = useAuth();
   const { getProfile, updateProfile, getMyInfluence, uploadPhoto } = useRestaurants();
 
   const [name, setName] = useState(displayName);
@@ -33,6 +33,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -90,6 +91,33 @@ export default function ProfileScreen() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleDeleteAccount() {
+    confirmAction(
+      '계정 삭제',
+      '계정과 함께 내 맛집·리뷰·사진·좋아요 기록이 모두 삭제됩니다.\n삭제 후에는 되돌릴 수 없어요.',
+      () => {
+        confirmAction(
+          '정말 삭제할까요?',
+          '마지막 확인이에요. 지금 삭제하면 복구할 수 없습니다.',
+          async () => {
+            setDeleting(true);
+            try {
+              await deleteAccount();
+              notify('삭제 완료', '계정이 삭제됐어요. 그동안 이용해주셔서 감사합니다.');
+            } catch (e: any) {
+              notify('삭제 실패', e.message ?? '잠시 후 다시 시도해주세요.');
+              setDeleting(false);
+            }
+          },
+          '삭제',
+          true,
+        );
+      },
+      '계속',
+      true,
+    );
   }
 
   if (loading) {
@@ -238,6 +266,15 @@ export default function ProfileScreen() {
               개인정보처리방침
             </Text>
           </View>
+
+          {/* 계정 삭제 (관리자 계정은 대시보드에서만 삭제 가능) */}
+          {!isAdmin && (
+            <Pressable style={styles.deleteRow} onPress={handleDeleteAccount} disabled={deleting}>
+              <Text style={styles.deleteText}>
+                {deleting ? '계정 삭제 중...' : '계정 삭제'}
+              </Text>
+            </Pressable>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -348,4 +385,6 @@ const styles = StyleSheet.create({
   },
   policyLink: { fontSize: 12, color: '#aaa', textDecorationLine: 'underline' },
   policyDivider: { fontSize: 12, color: '#ddd' },
+  deleteRow: { alignItems: 'center', marginTop: 4, paddingVertical: 8 },
+  deleteText: { fontSize: 12, color: '#E74C3C', textDecorationLine: 'underline' },
 });

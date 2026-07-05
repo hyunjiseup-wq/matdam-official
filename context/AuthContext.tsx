@@ -12,6 +12,7 @@ interface AuthContextType {
   signIn: (id: string, password: string) => Promise<void>;
   signUp: (id: string, password: string, displayName: string) => Promise<void>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -76,9 +77,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
   }, []);
 
+  // 계정 삭제: 업로드 사진은 Storage API로 정리(SQL 직접 삭제 금지),
+  // 나머지 데이터와 auth 계정은 delete_my_account RPC가 지운다.
+  // 삭제 후에는 서버 세션이 이미 사라졌을 수 있으므로 signOut 실패는 무시한다.
+  const deleteAccount = useCallback(async () => {
+    try {
+      const uid = (await supabase.auth.getUser()).data.user?.id;
+      if (uid) {
+        const { data: files } = await supabase.storage.from('restaurant-photos').list(uid, { limit: 1000 });
+        if (files?.length) {
+          await supabase.storage.from('restaurant-photos').remove(files.map((f) => `${uid}/${f.name}`));
+        }
+      }
+    } catch {
+      // 사진 정리는 best-effort — 실패해도 계정 삭제는 진행
+    }
+    const { error } = await supabase.rpc('delete_my_account');
+    if (error) throw new Error(error.message);
+    await supabase.auth.signOut().catch(() => {});
+    setSession(null);
+  }, []);
+
   return (
     <AuthContext.Provider
-      value={{ user, session, loading, displayName, isAdmin, signIn, signUp, signOut }}
+      value={{ user, session, loading, displayName, isAdmin, signIn, signUp, signOut, deleteAccount }}
     >
       {children}
     </AuthContext.Provider>

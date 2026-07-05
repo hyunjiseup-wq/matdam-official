@@ -1,6 +1,7 @@
 import { Session, User } from '@supabase/supabase-js';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { emailFromId, isAdminEmail } from '@/lib/admin';
+import { assertClean } from '@/lib/moderation';
 import { supabase } from '@/lib/supabase';
 
 interface AuthContextType {
@@ -65,6 +66,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signUp = useCallback(async (id: string, password: string, name: string) => {
+    assertClean(name, '닉네임');
+    assertClean(id, '아이디');
     const { error } = await supabase.auth.signUp({
       email: emailFromId(id),
       password,

@@ -12,11 +12,12 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ReportModal from '@/components/ReportModal';
 import { CATEGORY_BG, CATEGORY_COLORS } from '@/constants/filters';
 import { confirmAction, notify } from '@/lib/confirm';
 import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
-import { Restaurant, Review } from '@/types/restaurant';
+import { ReportTargetType, Restaurant, Review } from '@/types/restaurant';
 
 function formatMenuPrice(price: string): string {
   if (/^\d+$/.test(price)) return `${parseInt(price, 10).toLocaleString('ko-KR')}원`;
@@ -51,6 +52,7 @@ export default function DetailScreen() {
     copyRestaurant,
     getReviews,
     deleteReview,
+    blockUser,
   } = useRestaurants();
 
   const local = getRestaurant(id);
@@ -60,6 +62,12 @@ export default function DetailScreen() {
   const [copied, setCopied] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [showAllMenus, setShowAllMenus] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{
+    type: ReportTargetType;
+    id: string;
+    ownerId?: string;
+    label?: string;
+  } | null>(null);
 
   // 내 리스트에 없으면 DB에서 직접 조회
   useEffect(() => {
@@ -144,6 +152,28 @@ export default function DetailScreen() {
         : `https://map.naver.com/v5/search/${encoded}`;
       Linking.openURL(url).catch(() => notify('오류', '지도를 열 수 없습니다.'));
     }
+  }
+
+  function handleBlockUser(targetUid: string, targetName: string, goBackAfter = false) {
+    confirmAction(
+      '사용자 차단',
+      `${targetName}님을 차단할까요?\n차단하면 이 사용자의 맛집·리뷰·리스트가 더 이상 보이지 않아요. (마이 화면에서 해제 가능)`,
+      async () => {
+        try {
+          await blockUser(targetUid);
+          notify('차단 완료', '이 사용자의 콘텐츠가 더 이상 보이지 않아요.');
+          if (goBackAfter) {
+            router.back();
+          } else {
+            loadReviews();
+          }
+        } catch (e: any) {
+          notify('오류', e.message ?? '차단에 실패했어요.');
+        }
+      },
+      '차단',
+      true,
+    );
   }
 
   function handleDeleteReview(reviewId: string) {
@@ -245,6 +275,24 @@ export default function DetailScreen() {
               </Text>
             </Pressable>
           )}
+
+          {/* 다른 사람 콘텐츠 신고·차단 */}
+          {!isMine && restaurant.owner_id ? (
+            <View style={styles.modRow}>
+              <Pressable
+                onPress={() =>
+                  setReportTarget({ type: 'restaurant', id: restaurant.id, ownerId: restaurant.owner_id, label: name })
+                }
+                hitSlop={6}
+              >
+                <Text style={styles.modText}>🚩 신고</Text>
+              </Pressable>
+              <Text style={styles.modDivider}>·</Text>
+              <Pressable onPress={() => handleBlockUser(restaurant.owner_id, '이 작성자', true)} hitSlop={6}>
+                <Text style={styles.modText}>🚫 작성자 차단</Text>
+              </Pressable>
+            </View>
+          ) : null}
         </View>
 
         {/* 상세 정보 */}
@@ -354,6 +402,26 @@ export default function DetailScreen() {
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Stars count={review.rating} size={14} />
+                    {user && review.user_id !== user.id && (
+                      <>
+                        <Pressable
+                          onPress={() =>
+                            setReportTarget({
+                              type: 'review',
+                              id: review.id,
+                              ownerId: review.user_id,
+                              label: `${review.display_name}님의 리뷰`,
+                            })
+                          }
+                          hitSlop={6}
+                        >
+                          <Ionicons name="flag-outline" size={15} color="#bbb" />
+                        </Pressable>
+                        <Pressable onPress={() => handleBlockUser(review.user_id, review.display_name)} hitSlop={6}>
+                          <Ionicons name="person-remove-outline" size={15} color="#bbb" />
+                        </Pressable>
+                      </>
+                    )}
                     {isAdmin && (
                       <Pressable onPress={() => handleDeleteReview(review.id)} hitSlop={6}>
                         <Ionicons name="trash-outline" size={16} color="#FF7A45" />
@@ -395,6 +463,17 @@ export default function DetailScreen() {
           추가일: {new Date(restaurant.created_at).toLocaleDateString('ko-KR')}
         </Text>
       </ScrollView>
+
+      {reportTarget && (
+        <ReportModal
+          visible
+          onClose={() => setReportTarget(null)}
+          targetType={reportTarget.type}
+          targetId={reportTarget.id}
+          targetOwnerId={reportTarget.ownerId}
+          targetLabel={reportTarget.label}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -461,6 +540,9 @@ const styles = StyleSheet.create({
   copyBtnDone: { backgroundColor: '#E8FFF9' },
   copyBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   copyBtnTextDone: { color: '#00B894' },
+  modRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 2 },
+  modText: { fontSize: 12, color: '#aaa' },
+  modDivider: { fontSize: 12, color: '#ddd' },
 
   infoCard: {
     backgroundColor: '#fff',

@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import { inferDistrictFromAddress } from '@/constants/filters';
 import { useAuth } from '@/context/AuthContext';
+import { assertClean } from '@/lib/moderation';
 import { supabase } from '@/lib/supabase';
 import {
   Collection,
@@ -20,6 +21,9 @@ import {
   MyInfluence,
   OwnerRef,
   Profile,
+  Report,
+  ReportStatus,
+  ReportTargetType,
   Restaurant,
   Review,
   VisitedFilter,
@@ -76,6 +80,20 @@ interface RestaurantContextType {
   getReviews: (restaurantId: string) => Promise<Review[]>;
   saveReview: (restaurantId: string, rating: number, content: string) => Promise<void>;
   deleteReview: (reviewId: string) => Promise<void>;
+  // 신고 / 차단
+  reportContent: (input: {
+    target_type: ReportTargetType;
+    target_id: string;
+    target_owner_id?: string;
+    reason: string;
+    detail?: string;
+  }) => Promise<void>;
+  blockUser: (blockedId: string) => Promise<void>;
+  unblockUser: (blockedId: string) => Promise<void>;
+  isBlocked: (userId: string) => boolean;
+  getBlockedProfiles: () => Promise<Profile[]>;
+  getReports: () => Promise<Report[]>;
+  setReportStatus: (id: string, status: ReportStatus) => Promise<void>;
   // 피드백
   submitFeedback: (type: string, content: string) => Promise<void>;
   getFeedbackById: (id: string) => Promise<Feedback | null>;
@@ -199,6 +217,30 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
     discoverCacheRef.current = null;
   }, []);
 
+  // 차단 목록 — 피드·리뷰·둘러보기에서 차단한 사용자의 콘텐츠를 걸러낸다.
+  // 콜백들이 재생성되지 않도록 ref로도 미러링한다.
+  const [blockedIds, setBlockedIds] = useState<Set<string>>(new Set());
+  const blockedRef = useRef<Set<string>>(new Set());
+  const applyBlockedSet = useCallback((s: Set<string>) => {
+    blockedRef.current = s;
+    setBlockedIds(s);
+    discoverCacheRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    if (!userId) {
+      applyBlockedSet(new Set());
+      return;
+    }
+    supabase
+      .from('blocked_users')
+      .select('blocked_id')
+      .eq('blocker_id', userId)
+      .then(({ data }) => {
+        applyBlockedSet(new Set(((data ?? []) as { blocked_id: string }[]).map((r) => r.blocked_id)));
+      });
+  }, [userId, applyBlockedSet]);
+
   const fetchMine = useCallback(async (uid: string) => {
     const { data, error: err } = await supabase
       .from('seoul_restaurants')
@@ -294,6 +336,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
   const addRestaurant = useCallback(
     async (data: NewRestaurant) => {
       if (!userId) throw new Error('로그인이 필요합니다');
+      if (data.memo) assertClean(data.memo, '메모');
       const newId = makeUUID();
       const { data: row, error: err } = await supabase
         .from('seoul_restaurants')
@@ -331,6 +374,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
   const updateRestaurant = useCallback(
     async (id: string, data: EditRestaurant) => {
       if (!userId) throw new Error('로그인이 필요합니다');
+      if (data.memo) assertClean(data.memo, '메모');
       const { error: err } = await supabase
         .from('seoul_restaurants')
         .update({
@@ -453,12 +497,14 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       if (l.liker_id === userId) myLikes.add(l.owner_id);
     }
 
-    const result = (profs as Profile[]).map((p) => ({
-      ...p,
-      count: counts.get(p.id) ?? 0,
-      like_count: likeCounts.get(p.id) ?? 0,
-      liked: myLikes.has(p.id),
-    }));
+    const result = (profs as Profile[])
+      .filter((p) => !blockedRef.current.has(p.id))
+      .map((p) => ({
+        ...p,
+        count: counts.get(p.id) ?? 0,
+        like_count: likeCounts.get(p.id) ?? 0,
+        liked: myLikes.has(p.id),
+      }));
 
     // 인기순: 좋아요 → 조회수 → 맛집수
     result.sort(
@@ -517,6 +563,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
     for (const row of (rowsRes.data ?? []) as unknown as SupabaseRow[]) {
       const r = fromRow(row);
       if (!r.owner_id) continue;
+      if (blockedRef.current.has(r.owner_id)) continue;
       const key = groupKeyOf(r);
       const arr = groups.get(key) ?? [];
       arr.push(r);
@@ -642,6 +689,8 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
   const updateProfile = useCallback(
     async (patch: { display_name?: string; bio?: string; sns_url?: string; avatar_url?: string; preferred_region?: string }) => {
       if (!userId) throw new Error('로그인이 필요합니다');
+      if (patch.display_name) assertClean(patch.display_name, '닉네임');
+      if (patch.bio) assertClean(patch.bio, '소개');
       const { error: err } = await supabase
         .from('profiles')
         .update({
@@ -802,12 +851,13 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       .eq('restaurant_id', restaurantId)
       .order('created_at', { ascending: false });
     if (err) throw new Error(err.message);
-    return (data ?? []) as Review[];
+    return ((data ?? []) as Review[]).filter((rv) => !blockedRef.current.has(rv.user_id));
   }, []);
 
   const saveReview = useCallback(
     async (restaurantId: string, rating: number, content: string) => {
       if (!userId) throw new Error('로그인이 필요합니다');
+      assertClean(content, '리뷰');
       const { error: err } = await supabase.from('restaurant_reviews').upsert(
         {
           id: makeUUID(),
@@ -834,10 +884,98 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
     [isAdmin],
   );
 
+  // ── 신고 / 차단 ──────────────────────────────────────────────────────────
+
+  const reportContent = useCallback(
+    async (input: {
+      target_type: ReportTargetType;
+      target_id: string;
+      target_owner_id?: string;
+      reason: string;
+      detail?: string;
+    }) => {
+      if (!userId) throw new Error('로그인이 필요합니다');
+      const { error: err } = await supabase.from('reports').insert({
+        id: makeUUID(),
+        reporter_id: userId,
+        target_type: input.target_type,
+        target_id: input.target_id,
+        target_owner_id: input.target_owner_id ?? null,
+        reason: input.reason,
+        detail: input.detail?.trim() || null,
+      });
+      if (err) throw new Error(err.message);
+    },
+    [userId],
+  );
+
+  const blockUser = useCallback(
+    async (blockedId: string) => {
+      if (!userId) throw new Error('로그인이 필요합니다');
+      if (blockedId === userId) throw new Error('자기 자신은 차단할 수 없어요');
+      const { error: err } = await supabase
+        .from('blocked_users')
+        .upsert({ blocker_id: userId, blocked_id: blockedId });
+      if (err) throw new Error(err.message);
+      const next = new Set(blockedRef.current);
+      next.add(blockedId);
+      applyBlockedSet(next);
+    },
+    [userId, applyBlockedSet],
+  );
+
+  const unblockUser = useCallback(
+    async (blockedId: string) => {
+      if (!userId) throw new Error('로그인이 필요합니다');
+      const { error: err } = await supabase
+        .from('blocked_users')
+        .delete()
+        .eq('blocker_id', userId)
+        .eq('blocked_id', blockedId);
+      if (err) throw new Error(err.message);
+      const next = new Set(blockedRef.current);
+      next.delete(blockedId);
+      applyBlockedSet(next);
+    },
+    [userId, applyBlockedSet],
+  );
+
+  const isBlocked = useCallback((uid: string) => blockedIds.has(uid), [blockedIds]);
+
+  const getBlockedProfiles = useCallback(async (): Promise<Profile[]> => {
+    const ids = [...blockedIds];
+    if (ids.length === 0) return [];
+    const { data } = await supabase.from('profiles').select('*').in('id', ids);
+    return (data ?? []) as Profile[];
+  }, [blockedIds]);
+
+  const getReports = useCallback(async (): Promise<Report[]> => {
+    if (!isAdmin) throw new Error('관리자만 볼 수 있어요');
+    const { data, error: err } = await supabase
+      .from('reports')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (err) throw new Error(err.message);
+    return (data ?? []) as Report[];
+  }, [isAdmin]);
+
+  const setReportStatus = useCallback(
+    async (id: string, status: ReportStatus) => {
+      if (!isAdmin) throw new Error('관리자만 처리할 수 있어요');
+      const { error: err } = await supabase
+        .from('reports')
+        .update({ status, resolved_at: status === 'open' ? null : new Date().toISOString() })
+        .eq('id', id);
+      if (err) throw new Error(err.message);
+    },
+    [isAdmin],
+  );
+
   // ── 피드백 ────────────────────────────────────────────────────────────────
 
   const submitFeedback = useCallback(
     async (type: string, content: string) => {
+      assertClean(content, '피드백');
       const { error: err } = await supabase.from('app_feedback').insert({
         id: makeUUID(),
         user_id: userId ?? null,
@@ -967,6 +1105,13 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       getReviews,
       saveReview,
       deleteReview,
+      reportContent,
+      blockUser,
+      unblockUser,
+      isBlocked,
+      getBlockedProfiles,
+      getReports,
+      setReportStatus,
       submitFeedback,
       getFeedbackById,
       getMyFeedback,
@@ -1014,6 +1159,13 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       getReviews,
       saveReview,
       deleteReview,
+      reportContent,
+      blockUser,
+      unblockUser,
+      isBlocked,
+      getBlockedProfiles,
+      getReports,
+      setReportStatus,
       submitFeedback,
       getFeedbackById,
       getMyFeedback,

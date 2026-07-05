@@ -68,7 +68,10 @@ function RootNavigator() {
           headerRight: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               {isAdmin && (
-                <HeaderIcon name="mail-outline" onPress={() => router.push('/admin/feedback' as any)} />
+                <>
+                  <HeaderIcon name="flag-outline" onPress={() => router.push('/admin/reports' as any)} />
+                  <HeaderIcon name="mail-outline" onPress={() => router.push('/admin/feedback' as any)} />
+                </>
               )}
               <HeaderIcon name="chatbubble-outline" onPress={() => router.push('/feedback' as any)} />
             </View>
@@ -98,6 +101,7 @@ function RootNavigator() {
       <Stack.Screen name="feedback" options={{ title: '피드백 보내기', presentation: 'modal' }} />
       <Stack.Screen name="review/[id]" options={{ title: '리뷰 작성', presentation: 'modal' }} />
       <Stack.Screen name="admin/feedback" options={{ title: '받은 피드백' }} />
+      <Stack.Screen name="admin/reports" options={{ title: '신고 처리' }} />
     </Stack>
     <BottomTabBar />
     </View>

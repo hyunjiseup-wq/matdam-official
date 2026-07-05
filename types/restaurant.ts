@@ -80,6 +80,24 @@ export interface FeedbackReply {
   created_at: string;
 }
 
+// ── 신고 (콘텐츠 모더레이션) ──────────────────────────────────────────────────
+
+export type ReportTargetType = 'restaurant' | 'review' | 'profile';
+export type ReportStatus = 'open' | 'resolved' | 'dismissed';
+
+export interface Report {
+  id: string;
+  reporter_id: string;
+  target_type: ReportTargetType;
+  target_id: string;
+  target_owner_id?: string;
+  reason: string;
+  detail?: string;
+  status: ReportStatus;
+  created_at: string;
+  resolved_at?: string;
+}
+
 export interface FilterState {
   searchQuery: string;
   areaFilter: string | null;

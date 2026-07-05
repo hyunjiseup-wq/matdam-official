@@ -22,7 +22,7 @@ import { MyInfluence } from '@/types/restaurant';
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, displayName, isAdmin, deleteAccount } = useAuth();
-  const { getProfile, updateProfile, getMyInfluence, uploadPhoto } = useRestaurants();
+  const { getProfile, updateProfile, getMyInfluence, uploadPhoto, getBlockedProfiles, unblockUser } = useRestaurants();
 
   const [name, setName] = useState(displayName);
   const [bio, setBio] = useState('');
@@ -30,6 +30,7 @@ export default function ProfileScreen() {
   const [avatarUrl, setAvatarUrl] = useState('');
   const [preferredRegion, setPreferredRegion] = useState('');
   const [influence, setInfluence] = useState<MyInfluence | null>(null);
+  const [blockedList, setBlockedList] = useState<{ id: string; display_name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -38,7 +39,8 @@ export default function ProfileScreen() {
   useEffect(() => {
     (async () => {
       if (!user) return;
-      const [p, inf] = await Promise.all([getProfile(user.id), getMyInfluence()]);
+      const [p, inf, blocked] = await Promise.all([getProfile(user.id), getMyInfluence(), getBlockedProfiles()]);
+      setBlockedList(blocked);
       if (p) {
         setName(p.display_name ?? displayName);
         setBio(p.bio ?? '');
@@ -49,7 +51,17 @@ export default function ProfileScreen() {
       setInfluence(inf);
       setLoading(false);
     })();
-  }, [user, getProfile, getMyInfluence]);
+  }, [user, getProfile, getMyInfluence, getBlockedProfiles]);
+
+  async function handleUnblock(uid: string, name: string) {
+    try {
+      await unblockUser(uid);
+      setBlockedList((prev) => prev.filter((b) => b.id !== uid));
+      notify('차단 해제', `${name}님의 콘텐츠가 다시 보여요.`);
+    } catch (e: any) {
+      notify('오류', e.message ?? '차단 해제에 실패했어요.');
+    }
+  }
 
   function pickAvatar() {
     if (Platform.OS !== 'web') {
@@ -256,6 +268,21 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </Pressable>
 
+          {/* 차단 관리 */}
+          {blockedList.length > 0 && (
+            <View style={styles.blockedCard}>
+              <Text style={styles.blockedTitle}>🚫 차단한 사용자 ({blockedList.length})</Text>
+              {blockedList.map((b) => (
+                <View key={b.id} style={styles.blockedRow}>
+                  <Text style={styles.blockedName} numberOfLines={1}>{b.display_name}</Text>
+                  <Pressable onPress={() => handleUnblock(b.id, b.display_name)} hitSlop={6}>
+                    <Text style={styles.unblockText}>차단 해제</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+
           {/* 정책 링크 */}
           <View style={styles.policyRow}>
             <Text style={styles.policyLink} onPress={() => router.push('/policy/terms' as any)}>
@@ -387,4 +414,17 @@ const styles = StyleSheet.create({
   policyDivider: { fontSize: 12, color: '#ddd' },
   deleteRow: { alignItems: 'center', marginTop: 4, paddingVertical: 8 },
   deleteText: { fontSize: 12, color: '#E74C3C', textDecorationLine: 'underline' },
+  blockedCard: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#eee',
+    gap: 10,
+  },
+  blockedTitle: { fontSize: 14, fontWeight: '700', color: '#555' },
+  blockedRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  blockedName: { flex: 1, fontSize: 14, color: '#333' },
+  unblockText: { fontSize: 13, color: '#6C5CE7', fontWeight: '600' },
 });

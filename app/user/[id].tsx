@@ -15,10 +15,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Avatar from '@/components/Avatar';
 import ChipRow from '@/components/ChipRow';
+import ReportModal from '@/components/ReportModal';
 import RestaurantCard from '@/components/RestaurantCard';
 import SearchBar from '@/components/SearchBar';
 import { CATEGORIES, PROVINCES, inferDistrictFromAddress, inferProvinceFromAddress } from '@/constants/filters';
-import { notify } from '@/lib/confirm';
+import { confirmAction, notify } from '@/lib/confirm';
 import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
 import { Profile, Restaurant } from '@/types/restaurant';
@@ -37,6 +38,7 @@ export default function UserListScreen() {
     likeList,
     unlikeList,
     incrementProfileView,
+    blockUser,
     restaurants: myRestaurants,
   } = useRestaurants();
 
@@ -48,6 +50,7 @@ export default function UserListScreen() {
   const [province, setProvince] = useState<string | null>(null);
   const [district, setDistrict] = useState<string | null>(null);
   const [category, setCategory] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const isMyList = id === user?.id;
   const myNames = new Set(myRestaurants.map((r) => r.name));
@@ -124,6 +127,25 @@ export default function UserListScreen() {
     const extra = [...set].filter((c) => !CATEGORIES.includes(c)).sort();
     return [...known, ...extra];
   }, [items]);
+
+  function handleBlockOwner() {
+    if (!owner) return;
+    confirmAction(
+      '사용자 차단',
+      `${owner.display_name}님을 차단할까요?\n차단하면 이 사용자의 맛집·리뷰·리스트가 더 이상 보이지 않아요. (마이 화면에서 해제 가능)`,
+      async () => {
+        try {
+          await blockUser(owner.id);
+          notify('차단 완료', '이 사용자의 콘텐츠가 더 이상 보이지 않아요.');
+          router.back();
+        } catch (e: any) {
+          notify('오류', e.message ?? '차단에 실패했어요.');
+        }
+      },
+      '차단',
+      true,
+    );
+  }
 
   async function shareList() {
     const url = `${SITE}/user/${id}`;
@@ -230,6 +252,23 @@ export default function UserListScreen() {
                     <Text style={styles.shareBtnText}>리스트 공유</Text>
                   </Pressable>
                 </View>
+
+                {/* 다른 사용자 신고·차단 */}
+                {!isMyList && (
+                  <View style={styles.modRow}>
+                    <Pressable onPress={() => setReportOpen(true)} hitSlop={6}>
+                      <Text style={styles.modText}>🚩 신고</Text>
+                    </Pressable>
+                    {!owner.is_admin && (
+                      <>
+                        <Text style={styles.modDivider}>·</Text>
+                        <Pressable onPress={handleBlockOwner} hitSlop={6}>
+                          <Text style={styles.modText}>🚫 차단</Text>
+                        </Pressable>
+                      </>
+                    )}
+                  </View>
+                )}
               </View>
             )}
 
@@ -312,6 +351,17 @@ export default function UserListScreen() {
         contentContainerStyle={styles.list}
         keyboardShouldPersistTaps="handled"
       />
+
+      {owner && (
+        <ReportModal
+          visible={reportOpen}
+          onClose={() => setReportOpen(false)}
+          targetType="profile"
+          targetId={owner.id}
+          targetOwnerId={owner.id}
+          targetLabel={`${owner.display_name}님의 리스트`}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -388,6 +438,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   shareBtnText: { color: '#6C5CE7', fontSize: 14, fontWeight: '700' },
+  modRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 10 },
+  modText: { fontSize: 12, color: '#aaa' },
+  modDivider: { fontSize: 12, color: '#ddd' },
   emptyBox: { alignItems: 'center', paddingTop: 60 },
   emptySub: { fontSize: 14, color: '#aaa' },
 

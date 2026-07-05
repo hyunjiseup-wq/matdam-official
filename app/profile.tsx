@@ -227,6 +227,17 @@ export default function ProfileScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </Pressable>
+
+          {/* 정책 링크 */}
+          <View style={styles.policyRow}>
+            <Text style={styles.policyLink} onPress={() => router.push('/policy/terms' as any)}>
+              이용약관
+            </Text>
+            <Text style={styles.policyDivider}>·</Text>
+            <Text style={styles.policyLink} onPress={() => router.push('/policy/privacy' as any)}>
+              개인정보처리방침
+            </Text>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -327,4 +338,14 @@ const styles = StyleSheet.create({
   },
   guideTitle: { fontSize: 15, fontWeight: '700', color: '#1a1a1a' },
   guideSub: { fontSize: 12, color: '#999', marginTop: 2 },
+  policyRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  policyLink: { fontSize: 12, color: '#aaa', textDecorationLine: 'underline' },
+  policyDivider: { fontSize: 12, color: '#ddd' },
 });

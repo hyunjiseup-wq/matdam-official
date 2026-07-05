@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Alert,
@@ -15,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 
 export default function LoginScreen() {
+  const router = useRouter();
   const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [loginId, setLoginId] = useState('');
@@ -145,6 +147,21 @@ export default function LoginScreen() {
               ? '아직 계정이 없으신가요? 위에서 회원가입하세요.'
               : '이미 계정이 있으신가요? 위에서 로그인하세요.'}
           </Text>
+
+          {/* 정책 동의 고지 */}
+          <View style={styles.policyRow}>
+            <Text style={styles.policyText}>
+              {mode === 'signup' ? '가입 시 ' : '서비스 이용 시 '}
+              <Text style={styles.policyLink} onPress={() => router.push('/policy/terms' as any)}>
+                이용약관
+              </Text>
+              {' 및 '}
+              <Text style={styles.policyLink} onPress={() => router.push('/policy/privacy' as any)}>
+                개인정보처리방침
+              </Text>
+              에 동의하는 것으로 간주됩니다.
+            </Text>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -202,4 +219,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   hint: { textAlign: 'center', fontSize: 13, color: '#bbb', marginTop: 8 },
+  policyRow: { marginTop: 20, paddingHorizontal: 12 },
+  policyText: { textAlign: 'center', fontSize: 12, color: '#bbb', lineHeight: 18 },
+  policyLink: { color: '#FF7A45', textDecorationLine: 'underline' },
 });

@@ -1,0 +1,52 @@
+# 매주 월요일 03:00 KST에 Supabase DB를 덤프해 암호화 후 아티팩트로 보관 (90일)
+# 공개 저장소이므로 반드시 암호화해서 올린다.
+# 필요한 시크릿(Settings → Secrets and variables → Actions):
+#   SUPABASE_DB_URL   — Supabase 대시보드 Connect → Session pooler URI (비밀번호 포함)
+#   BACKUP_PASSPHRASE — 복호화용 임의의 긴 문자열 (분실 시 백업 복구 불가)
+# 시크릿이 없으면 아무것도 하지 않고 성공으로 끝난다. 자세한 사용법: docs/BACKUP.md
+
+name: DB 백업
+
+on:
+  schedule:
+    - cron: '0 18 * * 0' # 일요일 18:00 UTC = 월요일 03:00 KST
+  workflow_dispatch:
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 시크릿 확인
+        id: check
+        run: |
+          if [ -z "${{ secrets.SUPABASE_DB_URL }}" ] || [ -z "${{ secrets.BACKUP_PASSPHRASE }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::SUPABASE_DB_URL / BACKUP_PASSPHRASE 시크릿이 없어 백업을 건너뜁니다."
+          fi
+
+      - name: Supabase CLI 설치
+        if: steps.check.outputs.skip != 'true'
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: 덤프 생성 + 암호화
+        if: steps.check.outputs.skip != 'true'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f schema.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only -f data.sql
+          tar czf dump.tgz schema.sql data.sql
+          openssl enc -aes-256-cbc -pbkdf2 -salt -in dump.tgz -out dump.tgz.enc -pass env:BACKUP_PASSPHRASE
+          rm -f dump.tgz schema.sql data.sql
+          ls -lh dump.tgz.enc
+
+      - name: 아티팩트 업로드 (90일 보관)
+        if: steps.check.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_number }}
+          path: dump.tgz.enc
+          retention-days: 90

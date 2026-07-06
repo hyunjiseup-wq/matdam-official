@@ -46,7 +46,7 @@
 ## F. 운영/안정성
 - [ ] F1. 에러 로깅 (Sentry)
 - [ ] F2. 업타임 모니터링 + Vercel/Supabase 사용량 알림
-- [ ] F3. DB 백업 체계 (Free 플랜은 자동 백업 없음 — 주기 덤프 또는 Pro)
+- [ ] F3. DB 백업 — 주간 암호화 덤프 워크플로 준비 완료(.github/workflows/db-backup.yml, docs/BACKUP.md). **사용자: 저장소 시크릿 2개(SUPABASE_DB_URL·BACKUP_PASSPHRASE) 등록하면 활성화**
 - [x] F4. 조회 인덱스 8종 추가(migration14) — 리뷰·피드백·좋아요·신고·차단·컬렉션 경로. 텍스트/좌표 인덱스는 서버측 검색 도입 시(현재 전부 클라이언트 필터링)
 - [ ] F5. OSM 타일 → 상용 타일(MapTiler 등) 전환 (1만 MAU 전)
 - [x] F6. Nominatim 대응 — 역지오코딩 결과 24h 캐시(좌표 4자리 반올림) + 인스턴스당 1req/s 간격. 호출 자체가 구글 링크 붙여넣기 때만 발생해 저볼륨

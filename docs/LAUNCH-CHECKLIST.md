@@ -37,7 +37,7 @@
 - [ ] D6. TestFlight 베타
 
 ## E. 보안·남용 방지
-- [ ] E1. /api/extract-place **rate limit** + CORS `*` → 자사 도메인 제한
+- [x] E1. /api/extract-place rate limit(IP당 분당 10회) + CORS 자사 도메인 제한 + 내부망 링크 차단(SSRF)
 - [ ] E2. 이미지 업로드 용량/타입 제한 + 리사이즈 (현재 무제한)
 - [ ] E3. Supabase Captcha(Attack Protection) 검토 — 봇 가입 방지
 - [ ] E4. (선택) 이메일 등록 + 비밀번호 재설정 — 가입 화면 문구도 수정 필요

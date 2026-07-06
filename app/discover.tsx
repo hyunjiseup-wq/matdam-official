@@ -17,6 +17,7 @@ import ChipRow from '@/components/ChipRow';
 import SearchBar from '@/components/SearchBar';
 import { CATEGORIES, PROVINCES, inferDistrictFromAddress, inferProvinceFromAddress } from '@/constants/filters';
 import { notify } from '@/lib/confirm';
+import { getCurrentPosition } from '@/lib/geo';
 import { useRestaurants } from '@/context/RestaurantContext';
 import { DiscoverItem, DiscoverSort, OwnerRef, Profile } from '@/types/restaurant';
 
@@ -180,24 +181,21 @@ export default function DiscoverScreen() {
   const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
 
-  // 가까운순: 브라우저 위치 동의 후 정렬
-  const handleNearby = useCallback(() => {
+  // 가까운순: 위치 동의 후 정렬 (웹·네이티브 공용 — lib/geo)
+  const handleNearby = useCallback(async () => {
     if (userLoc) {
       setSort('nearby');
       return;
     }
-    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+    const res = await getCurrentPosition();
+    if (res.ok) {
+      setUserLoc({ lat: res.lat, lng: res.lng });
+      setSort('nearby');
+    } else if (res.reason === 'denied') {
+      notify('위치 권한 필요', '가까운순 정렬은 위치 권한을 허용해야 사용할 수 있어요.');
+    } else {
       notify('안내', '이 기기에서는 위치를 사용할 수 없어요.');
-      return;
     }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setSort('nearby');
-      },
-      () => notify('위치 권한 필요', '가까운순 정렬은 위치 권한을 허용해야 사용할 수 있어요.'),
-      { timeout: 8000 },
-    );
   }, [userLoc]);
 
   const load = useCallback(async () => {

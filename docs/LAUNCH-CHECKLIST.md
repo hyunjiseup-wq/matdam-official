@@ -21,11 +21,11 @@
 - [x] C1. Expo SDK 51 → 56 업그레이드 (RN 0.85·React 19·TS 6.0, Play API 35 충족) — tsc·export·브라우저 스모크 통과
 - [x] C2. 번들 ID `com.matdam.app` + scheme `matdam` (app.json) — 스토어 제출 전까지는 변경 가능
 - [x] C3. 앱 아이콘·스플래시·adaptiveIcon — "핀 속 밥그릇" 마크 확정, assets/ 4종(1024 아이콘·adaptive 전경·스플래시 로고·웹 파비콘) + expo-splash-screen 플러그인 설정
-- [ ] C4. 네이티브 지도 (react-native-maps) — 현재 지도는 웹 전용
-- [ ] C5. expo-location — 네이티브 가까운순/내 위치
-- [ ] C6. 네이티브 공유 시트 (RN Share)
-- [ ] C7. 푸시 알림 (expo-notifications + 서버 트리거: 담김/피드백 답변) — 권장
-- [ ] C8. 딥링크 라우팅 검증 (스킴 → 상세/리스트)
+- [x] C4. 네이티브 지도 — components/RestaurantMap 플랫폼 분리 (웹 Leaflet 유지 + 네이티브 react-native-maps, 마커·콜아웃·내위치). ⚠️ **Android 빌드 전 Google Maps API 키 필요** (app.json android.config.googleMaps.apiKey)
+- [x] C5. 위치 — lib/geo.ts (웹 geolocation / 네이티브 expo-location 공용), 가까운순 연결 + 한국어 권한 문구 플러그인
+- [x] C6. 공유 — 이미 크로스플랫폼 (네이티브 RN Share 시트 / 웹 클립보드), 코드 확인 완료
+- [ ] C7. 푸시 알림 (expo-notifications + 서버 트리거) — 첫 EAS 빌드 후 실기기로 검증하며 진행
+- [ ] C8. 딥링크 라우팅 검증 (matdam:// → 상세/리스트) — 스킴 설정 완료, 실기기 빌드에서 검증
 - [ ] C9. eas.json + 서명 키 설정
 
 ## D. 스토어 제출 준비물

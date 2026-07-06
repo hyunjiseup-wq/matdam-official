@@ -29,6 +29,12 @@
       "expo-router",
       "expo-font",
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "가까운 맛집 정렬과 지도에 내 위치를 표시하는 데 사용해요. 위치는 기기에서만 쓰이고 서버에 저장되지 않아요."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",

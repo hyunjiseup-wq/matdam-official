@@ -20,7 +20,7 @@
 ## C. 네이티브 앱 전환 (Expo EAS)
 - [x] C1. Expo SDK 51 → 56 업그레이드 (RN 0.85·React 19·TS 6.0, Play API 35 충족) — tsc·export·브라우저 스모크 통과
 - [x] C2. 번들 ID `com.matdam.app` + scheme `matdam` (app.json) — 스토어 제출 전까지는 변경 가능
-- [ ] C3. 앱 아이콘(1024px)·스플래시·adaptiveIcon 제작 (현재 assets 없음)
+- [x] C3. 앱 아이콘·스플래시·adaptiveIcon — "핀 속 밥그릇" 마크 확정, assets/ 4종(1024 아이콘·adaptive 전경·스플래시 로고·웹 파비콘) + expo-splash-screen 플러그인 설정
 - [ ] C4. 네이티브 지도 (react-native-maps) — 현재 지도는 웹 전용
 - [ ] C5. expo-location — 네이티브 가까운순/내 위치
 - [ ] C6. 네이티브 공유 시트 (RN Share)

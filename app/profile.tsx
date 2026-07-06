@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Avatar from '@/components/Avatar';
 import { confirmAction, notify } from '@/lib/confirm';
+import { AVATAR_MAX_DIM } from '@/lib/imagePrep';
 import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
 import { MyInfluence } from '@/types/restaurant';
@@ -76,8 +77,7 @@ export default function ProfileScreen() {
       if (!file) return;
       setUploadingAvatar(true);
       try {
-        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-        const url = await uploadPhoto(file, ext);
+        const url = await uploadPhoto(file, AVATAR_MAX_DIM);
         setAvatarUrl(url);
       } catch (e: any) {
         notify('업로드 실패', e.message ?? '다시 시도해주세요.');

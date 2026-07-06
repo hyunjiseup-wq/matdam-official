@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import { inferDistrictFromAddress } from '@/constants/filters';
 import { useAuth } from '@/context/AuthContext';
+import { prepareImageForUpload } from '@/lib/imagePrep';
 import { assertClean } from '@/lib/moderation';
 import { supabase } from '@/lib/supabase';
 import {
@@ -57,7 +58,7 @@ interface RestaurantContextType {
   toggleVisited: (id: string) => Promise<void>;
   toggleWishlist: (id: string) => Promise<void>;
   copyRestaurant: (src: Restaurant) => Promise<string>;
-  uploadPhoto: (file: Blob, ext?: string) => Promise<string>;
+  uploadPhoto: (file: Blob, maxDim?: number) => Promise<string>;
   // 둘러보기 / 프로필
   getUsers: () => Promise<Profile[]>;
   getUserRestaurants: (userId: string) => Promise<Restaurant[]>;
@@ -318,12 +319,14 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
   // ── 사진 업로드 ──────────────────────────────────────────────────────────
 
   const uploadPhoto = useCallback(
-    async (file: Blob, ext = 'jpg'): Promise<string> => {
+    async (file: Blob, maxDim?: number): Promise<string> => {
       if (!userId) throw new Error('로그인이 필요합니다');
-      const path = `${userId}/${makeUUID()}.${ext}`;
+      // 용량·타입 검증 + 긴 변 축소·JPEG 변환 (버킷 5MB 제한의 1차 방어)
+      const prepared = await prepareImageForUpload(file, maxDim);
+      const path = `${userId}/${makeUUID()}.${prepared.ext}`;
       const { error: err } = await supabase.storage
         .from('restaurant-photos')
-        .upload(path, file, { contentType: (file as any).type || 'image/jpeg', upsert: false });
+        .upload(path, prepared.blob, { contentType: prepared.contentType, upsert: false });
       if (err) throw new Error(err.message);
       const { data } = supabase.storage.from('restaurant-photos').getPublicUrl(path);
       return data.publicUrl;

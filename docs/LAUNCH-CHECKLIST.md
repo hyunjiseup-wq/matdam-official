@@ -38,7 +38,7 @@
 
 ## E. 보안·남용 방지
 - [x] E1. /api/extract-place rate limit(IP당 분당 10회) + CORS 자사 도메인 제한 + 내부망 링크 차단(SSRF)
-- [ ] E2. 이미지 업로드 용량/타입 제한 + 리사이즈 (현재 무제한)
+- [x] E2. 이미지 업로드 제한 — 버킷 5MB·이미지 MIME 만(migration13) + 클라이언트 리사이즈(긴 변 1600px·아바타 512px, JPEG 변환)
 - [ ] E3. Supabase Captcha(Attack Protection) 검토 — 봇 가입 방지
 - [ ] E4. (선택) 이메일 등록 + 비밀번호 재설정 — 가입 화면 문구도 수정 필요
 - [ ] E5. 비밀번호 정책(8자+조합) 대시보드 저장 확인

@@ -219,8 +219,7 @@ export default function FormScreen() {
       if (!file) return;
       setUploading(true);
       try {
-        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-        const url = await uploadPhoto(file, ext);
+        const url = await uploadPhoto(file);
         set('image_url', url);
       } catch (e: any) {
         notify('업로드 실패', e.message ?? '다시 시도해주세요.');

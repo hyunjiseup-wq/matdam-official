@@ -26,7 +26,7 @@
 - [x] C6. 공유 — 이미 크로스플랫폼 (네이티브 RN Share 시트 / 웹 클립보드), 코드 확인 완료
 - [ ] C7. 푸시 알림 (expo-notifications + 서버 트리거) — 첫 EAS 빌드 후 실기기로 검증하며 진행
 - [ ] C8. 딥링크 라우팅 검증 (matdam:// → 상세/리스트) — 스킴 설정 완료, 실기기 빌드에서 검증
-- [ ] C9. eas.json + 서명 키 설정
+- [ ] C9. EAS 빌드 — eas.json 준비 완료 (preview=APK, production=AAB 자동버전). **사용자: expo.dev 가입 → `npx eas-cli login` → `npx eas-cli init` → `npx eas-cli build -p android --profile preview`** (서명 키는 EAS가 자동 관리). Android는 Google Maps API 키도 먼저 필요(C4 참고)
 
 ## D. 스토어 제출 준비물
 - [ ] D1. Google Play Console 계정 + Data safety form

@@ -2,6 +2,7 @@ import { Session, User } from '@supabase/supabase-js';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { emailFromId, isAdminEmail } from '@/lib/admin';
 import { assertClean } from '@/lib/moderation';
+import { registerPushToken, unregisterPushToken } from '@/lib/push';
 import { supabase } from '@/lib/supabase';
 
 interface AuthContextType {
@@ -62,6 +63,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
   }, [user?.id, displayName]);
 
+  // 로그인 시 이 기기의 푸시 토큰 등록 (네이티브 전용, 실패해도 무시)
+  useEffect(() => {
+    if (!user) return;
+    registerPushToken(user.id);
+  }, [user?.id]);
+
   const signIn = useCallback(async (id: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
       email: emailFromId(id),
@@ -82,6 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    await unregisterPushToken();
     await supabase.auth.signOut();
   }, []);
 

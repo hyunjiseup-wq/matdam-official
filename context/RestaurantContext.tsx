@@ -452,6 +452,8 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
         .insert({
           id: newId,
           owner_id: userId,
+          // 누가 담았는지 알림을 보내기 위해 원본 주인을 기록 (자기 것 담기는 제외)
+          source_owner_id: src.owner_id && src.owner_id !== userId ? src.owner_id : null,
           name: src.name,
           area: src.area ?? null,
           category: src.category ?? null,

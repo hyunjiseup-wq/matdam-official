@@ -28,7 +28,10 @@ const UA =
 // Origin 헤더가 없는 요청(네이티브 앱, 서버 간 호출)은 CORS 대상이 아니므로 통과.
 function isAllowedOrigin(origin) {
   if (!origin) return true;
-  if (/^https:\/\/matdam-official(-[a-z0-9-]+)?\.vercel\.app$/.test(origin)) return true;
+  if (origin === 'https://matdam-official.vercel.app') return true;
+  if (origin === 'https://2nd-app-green.vercel.app') return true;
+  // Vercel 프리뷰·프로젝트 도메인 (matdam-git-<branch>-..., matdam-<hash>-...)
+  if (/^https:\/\/matdam(-[a-z0-9-]+)?-hyunjiseup-wqs-projects\.vercel\.app$/.test(origin)) return true;
   if (/^http:\/\/localhost(:\d+)?$/.test(origin)) return true;
   return false;
 }

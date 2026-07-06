@@ -4,20 +4,20 @@
     "slug": "seoul-restaurant-list",
     "version": "1.0.0",
     "orientation": "portrait",
-    "scheme": "seoul-restaurant-list",
+    "scheme": "matdam",
     "userInterfaceStyle": "light",
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.example.seoulrestaurantlist"
+      "bundleIdentifier": "com.matdam.app"
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#FF7A45"
       },
-      "package": "com.example.seoulrestaurantlist"
+      "package": "com.matdam.app"
     },
     "web": {
       "bundler": "metro"

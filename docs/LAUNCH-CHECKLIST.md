@@ -39,17 +39,17 @@
 ## E. 보안·남용 방지
 - [x] E1. /api/extract-place rate limit(IP당 분당 10회) + CORS 자사 도메인 제한 + 내부망 링크 차단(SSRF)
 - [x] E2. 이미지 업로드 제한 — 버킷 5MB·이미지 MIME 만(migration13) + 클라이언트 리사이즈(긴 변 1600px·아바타 512px, JPEG 변환)
-- [ ] E3. Supabase Captcha(Attack Protection) 검토 — 봇 가입 방지
-- [ ] E4. (선택) 이메일 등록 + 비밀번호 재설정 — 가입 화면 문구도 수정 필요
-- [ ] E5. 비밀번호 정책(8자+조합) 대시보드 저장 확인
+- [x] E3. Captcha 검토 완료 — **출시 초기 보류** 결정. 비번 정책+가입 rate limit 이 1차 방어. 봇 가입 징후 보이면 Cloudflare Turnstile 발급 → 대시보드 Attack Protection 켜기 → signUp/signIn 에 captchaToken 연동 (코드 반나절)
+- [ ] E4. (선택) 이메일 등록 + 비밀번호 재설정 — 가입 화면 문구도 수정 필요 (제품 결정 필요)
+- [x] E5. 비밀번호 정책 서버 강제 확인 — 8자 미만·숫자만·문자만 모두 거부됨 (실가입 테스트)
 
 ## F. 운영/안정성
 - [ ] F1. 에러 로깅 (Sentry)
 - [ ] F2. 업타임 모니터링 + Vercel/Supabase 사용량 알림
 - [ ] F3. DB 백업 체계 (Free 플랜은 자동 백업 없음 — 주기 덤프 또는 Pro)
-- [ ] F4. 검색·좌표 인덱스 (name/address/category, lat·lng)
+- [x] F4. 조회 인덱스 8종 추가(migration14) — 리뷰·피드백·좋아요·신고·차단·컬렉션 경로. 텍스트/좌표 인덱스는 서버측 검색 도입 시(현재 전부 클라이언트 필터링)
 - [ ] F5. OSM 타일 → 상용 타일(MapTiler 등) 전환 (1만 MAU 전)
-- [ ] F6. Nominatim 저볼륨 유지·캐싱 (사용정책 1req/s)
+- [x] F6. Nominatim 대응 — 역지오코딩 결과 24h 캐시(좌표 4자리 반올림) + 인스턴스당 1req/s 간격. 호출 자체가 구글 링크 붙여넣기 때만 발생해 저볼륨
 
 ## G. 측정 (KPI) — 현재 분석 도구 전무
 - [ ] G1. 분석 도입 (PostHog/GA4 등) — 가입·등록·저장·공유 이벤트

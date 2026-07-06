@@ -419,8 +419,20 @@ async function parseGoogle(finalUrl, html) {
 }
 
 // 좌표 → 한국 주소 (OSM Nominatim, 무료·키 불필요)
+// 사용정책(1req/s) 대응: 결과를 캐시하고 인스턴스당 호출 간격을 1초로 벌린다.
+const geoCache = new Map(); // "lat,lon"(소수 4자리≈11m) → { addr, at }
+const GEO_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const GEO_CACHE_MAX = 500;
+let lastGeoCallAt = 0;
+
 async function reverseGeocode(lat, lon) {
+  const key = `${Number(lat).toFixed(4)},${Number(lon).toFixed(4)}`;
+  const hit = geoCache.get(key);
+  if (hit && Date.now() - hit.at < GEO_CACHE_TTL_MS) return hit.addr;
   try {
+    const wait = 1000 - (Date.now() - lastGeoCallAt);
+    if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+    lastGeoCallAt = Date.now();
     const r = await fetch(
       `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ko`,
       { headers: { 'User-Agent': 'matdam-app/1.0 (https://matdam-official.vercel.app)' } }
@@ -437,7 +449,14 @@ async function reverseGeocode(lat, lon) {
     push(a.borough || a.city_district || a.town);
     push(a.road);
     if (a.house_number) parts.push(a.house_number);
-    return clean(parts.join(' '));
+    const addr = clean(parts.join(' '));
+    if (addr) {
+      geoCache.set(key, { addr, at: Date.now() });
+      if (geoCache.size > GEO_CACHE_MAX) {
+        geoCache.delete(geoCache.keys().next().value); // 가장 오래된 항목 제거
+      }
+    }
+    return addr;
   } catch {
     return '';
   }

@@ -21,12 +21,14 @@ function RootNavigator() {
   const segments = useSegments();
 
   // 인증 가드: 로그인 안 됐으면 /login, 로그인됐는데 /login이면 홈으로
+  // 비밀번호 찾기·재설정과 정책 문서는 로그인 전에도 볼 수 있어야 한다
   useEffect(() => {
     if (loading) return;
-    const inAuthGroup = (segments[0] as string) === 'login';
-    if (!user && !inAuthGroup) {
+    const seg = (segments[0] as string) ?? '';
+    const isPublic = ['login', 'forgot-password', 'reset-password', 'policy'].includes(seg);
+    if (!user && !isPublic) {
       router.replace('/login' as any);
-    } else if (user && inAuthGroup) {
+    } else if (user && seg === 'login') {
       router.replace('/');
     }
   }, [user, loading, segments]);
@@ -81,6 +83,8 @@ function RootNavigator() {
       <Stack.Screen name="discover" options={{ title: '전체 맛집' }} />
       <Stack.Screen name="collections" options={{ title: '테마 컬렉션' }} />
       <Stack.Screen name="map" options={{ title: '🗺️ 맛집 지도' }} />
+      <Stack.Screen name="forgot-password" options={{ title: '비밀번호 찾기' }} />
+      <Stack.Screen name="reset-password" options={{ title: '비밀번호 재설정' }} />
       <Stack.Screen name="policy/privacy" options={{ title: '개인정보처리방침' }} />
       <Stack.Screen name="policy/terms" options={{ title: '이용약관' }} />
       <Stack.Screen name="collection/[id]" options={{ title: '컬렉션' }} />

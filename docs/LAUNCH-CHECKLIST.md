@@ -40,7 +40,7 @@
 - [x] E1. /api/extract-place rate limit(IP당 분당 10회) + CORS 자사 도메인 제한 + 내부망 링크 차단(SSRF)
 - [x] E2. 이미지 업로드 제한 — 버킷 5MB·이미지 MIME 만(migration13) + 클라이언트 리사이즈(긴 변 1600px·아바타 512px, JPEG 변환)
 - [x] E3. Captcha 검토 완료 — **출시 초기 보류** 결정. 비번 정책+가입 rate limit 이 1차 방어. 봇 가입 징후 보이면 Cloudflare Turnstile 발급 → 대시보드 Attack Protection 켜기 → signUp/signIn 에 captchaToken 연동 (코드 반나절)
-- [ ] E4. (선택) 이메일 등록 + 비밀번호 재설정 — 가입 화면 문구도 수정 필요 (제품 결정 필요)
+- [x] E4. 이메일 등록 + 비밀번호 재설정 — 마이 탭 로그인·보안 카드(이메일 등록·비번 변경), /forgot-password·/reset-password, 로그인 화면 이메일 겸용. **사용자: 대시보드 2건 필요 — Auth→Email "Secure email change" OFF, Auth→URL Configuration에 Site URL·/reset-password 등록**
 - [x] E5. 비밀번호 정책 서버 강제 확인 — 8자 미만·숫자만·문자만 모두 거부됨 (실가입 테스트)
 
 ## F. 운영/안정성

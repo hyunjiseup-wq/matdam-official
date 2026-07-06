@@ -22,7 +22,7 @@ import { MyInfluence } from '@/types/restaurant';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, displayName, isAdmin, deleteAccount } = useAuth();
+  const { user, displayName, isAdmin, deleteAccount, registerEmail, changePassword } = useAuth();
   const { getProfile, updateProfile, getMyInfluence, uploadPhoto, getBlockedProfiles, unblockUser } = useRestaurants();
 
   const [name, setName] = useState(displayName);
@@ -32,6 +32,10 @@ export default function ProfileScreen() {
   const [preferredRegion, setPreferredRegion] = useState('');
   const [influence, setInfluence] = useState<MyInfluence | null>(null);
   const [blockedList, setBlockedList] = useState<{ id: string; display_name: string }[]>([]);
+  const [securityEmail, setSecurityEmail] = useState('');
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [newPw, setNewPw] = useState('');
+  const [savingPw, setSavingPw] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -61,6 +65,46 @@ export default function ProfileScreen() {
       notify('차단 해제', `${name}님의 콘텐츠가 다시 보여요.`);
     } catch (e: any) {
       notify('오류', e.message ?? '차단 해제에 실패했어요.');
+    }
+  }
+
+  // 가짜 아이디 이메일(@seoulmatjip.app)이 아니면 실제 이메일이 등록된 것
+  const hasRealEmail = !!user?.email && !user.email.endsWith('@seoulmatjip.app');
+
+  async function handleRegisterEmail() {
+    if (!securityEmail.trim()) {
+      notify('입력 오류', '이메일 주소를 입력해주세요.');
+      return;
+    }
+    setSavingEmail(true);
+    try {
+      await registerEmail(securityEmail);
+      setSecurityEmail('');
+      notify(
+        '인증 메일을 보냈어요 📮',
+        '메일함에서 링크를 누르면 등록이 완료돼요.\n등록 후에는 아이디 대신 이 이메일로 로그인해주세요!',
+      );
+    } catch (e: any) {
+      notify('등록 실패', e.message ?? '다시 시도해주세요.');
+    } finally {
+      setSavingEmail(false);
+    }
+  }
+
+  async function handleChangePassword() {
+    if (newPw.length < 8) {
+      notify('입력 오류', '비밀번호는 8자 이상, 영문과 숫자를 포함해야 해요.');
+      return;
+    }
+    setSavingPw(true);
+    try {
+      await changePassword(newPw);
+      setNewPw('');
+      notify('변경 완료 ✅', '다음 로그인부터 새 비밀번호를 사용하세요.');
+    } catch (e: any) {
+      notify('변경 실패', e.message ?? '다시 시도해주세요.');
+    } finally {
+      setSavingPw(false);
     }
   }
 
@@ -268,6 +312,52 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </Pressable>
 
+          {/* 로그인·보안: 이메일 등록(비밀번호 찾기용) + 비밀번호 변경 */}
+          <View style={styles.securityCard}>
+            <Text style={styles.securityTitle}>🔐 로그인 · 보안</Text>
+
+            <Text style={styles.label}>이메일 {hasRealEmail ? '(등록됨)' : '(미등록)'}</Text>
+            {hasRealEmail && <Text style={styles.securityEmailNow}>{user?.email}</Text>}
+            <TextInput
+              style={styles.input}
+              value={securityEmail}
+              onChangeText={setSecurityEmail}
+              placeholder={hasRealEmail ? '변경할 이메일 주소' : '이메일을 등록하면 비밀번호를 잊어도 찾을 수 있어요'}
+              placeholderTextColor="#bbb"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+            />
+            <Pressable
+              style={({ pressed }) => [styles.securityBtn, pressed && { opacity: 0.85 }, savingEmail && { opacity: 0.6 }]}
+              onPress={handleRegisterEmail}
+              disabled={savingEmail}
+            >
+              <Ionicons name="mail-outline" size={16} color="#fff" />
+              <Text style={styles.securityBtnText}>
+                {savingEmail ? '처리 중...' : hasRealEmail ? '이메일 변경' : '이메일 등록'}
+              </Text>
+            </Pressable>
+
+            <Text style={[styles.label, { marginTop: 14 }]}>비밀번호 변경</Text>
+            <TextInput
+              style={styles.input}
+              value={newPw}
+              onChangeText={setNewPw}
+              placeholder="새 비밀번호 (8자 이상, 영문+숫자)"
+              placeholderTextColor="#bbb"
+              secureTextEntry
+            />
+            <Pressable
+              style={({ pressed }) => [styles.securityBtn, pressed && { opacity: 0.85 }, savingPw && { opacity: 0.6 }]}
+              onPress={handleChangePassword}
+              disabled={savingPw}
+            >
+              <Ionicons name="key-outline" size={16} color="#fff" />
+              <Text style={styles.securityBtnText}>{savingPw ? '변경 중...' : '비밀번호 변경'}</Text>
+            </Pressable>
+          </View>
+
           {/* 차단 관리 */}
           {blockedList.length > 0 && (
             <View style={styles.blockedCard}>
@@ -412,6 +502,27 @@ const styles = StyleSheet.create({
   },
   policyLink: { fontSize: 12, color: '#aaa', textDecorationLine: 'underline' },
   policyDivider: { fontSize: 12, color: '#ddd' },
+  securityCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#F0EAE4',
+  },
+  securityTitle: { fontSize: 15, fontWeight: '700', color: '#333', marginBottom: 10 },
+  securityEmailNow: { fontSize: 13, color: '#00875A', marginBottom: 6 },
+  securityBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#6C5CE7',
+    borderRadius: 10,
+    paddingVertical: 10,
+    marginTop: 8,
+  },
+  securityBtnText: { color: '#fff', fontSize: 13.5, fontWeight: '700' },
   deleteRow: { alignItems: 'center', marginTop: 4, paddingVertical: 8 },
   deleteText: { fontSize: 12, color: '#E74C3C', textDecorationLine: 'underline' },
   blockedCard: {

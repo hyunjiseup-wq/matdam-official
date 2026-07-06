@@ -75,6 +75,16 @@ async function main() {
     process.exit(1);
   }
 
+  // 1.5) 로그인 전 공개 라우트: 비밀번호 찾기 화면이 로그인으로 튕기지 않아야
+  await page.goto(new URL('/forgot-password', BASE).href, { waitUntil: 'networkidle2', timeout: 60000 });
+  const forgotOk = await page
+    .waitForFunction(() => document.body.innerText.includes('비밀번호 찾기'), { timeout: 20000 })
+    .then(() => true)
+    .catch(() => false);
+  check('forgot-password public route', forgotOk);
+  await page.goto(BASE, { waitUntil: 'networkidle2', timeout: 60000 });
+  await page.waitForSelector('input[placeholder^="아이디"]', { timeout: 30000 });
+
   // 2) 로그인 ('로그인' 텍스트는 탭에도 있어 마지막 것이 제출 버튼)
   await page.type('input[placeholder^="아이디"]', id);
   await page.type('input[placeholder^="비밀번호"]', pw);

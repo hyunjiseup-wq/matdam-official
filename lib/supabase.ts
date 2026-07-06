@@ -20,6 +20,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: authStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    // 웹에서 비밀번호 재설정 링크(URL 해시 토큰)로 세션을 복구하려면 필요
+    detectSessionInUrl: Platform.OS === 'web',
   },
 });

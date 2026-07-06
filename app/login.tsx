@@ -108,7 +108,7 @@ export default function LoginScreen() {
               style={styles.input}
               value={loginId}
               onChangeText={setLoginId}
-              placeholder="아이디 (영문/숫자, 예: foodmaster)"
+              placeholder={mode === 'login' ? '아이디 또는 이메일' : '아이디 (영문/숫자, 예: foodmaster)'}
               placeholderTextColor="#bbb"
               autoCapitalize="none"
               autoCorrect={false}
@@ -126,7 +126,8 @@ export default function LoginScreen() {
             />
             {mode === 'signup' && (
               <Text style={styles.notice}>
-                ⚠️ 개인 이메일·비밀번호 말고{'\n'}새 아이디와 비밀번호를 만들어 쓰세요!
+                ⚠️ 개인 이메일·비밀번호 말고{'\n'}새 아이디와 비밀번호를 만들어 쓰세요!{'\n'}
+                가입 후 마이 탭에서 이메일을 등록하면{'\n'}비밀번호를 잊어도 찾을 수 있어요.
               </Text>
             )}
 
@@ -141,6 +142,12 @@ export default function LoginScreen() {
               </Text>
             </Pressable>
           </View>
+
+          {mode === 'login' && (
+            <Text style={styles.forgotLink} onPress={() => router.push('/forgot-password' as any)}>
+              비밀번호를 잊으셨나요?
+            </Text>
+          )}
 
           <Text style={styles.hint}>
             {mode === 'login'
@@ -219,6 +226,13 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   hint: { textAlign: 'center', fontSize: 13, color: '#bbb', marginTop: 8 },
+  forgotLink: {
+    textAlign: 'center',
+    fontSize: 13,
+    color: '#FF7A45',
+    marginTop: 14,
+    textDecorationLine: 'underline',
+  },
   policyRow: { marginTop: 20, paddingHorizontal: 12 },
   policyText: { textAlign: 'center', fontSize: 12, color: '#bbb', lineHeight: 18 },
   policyLink: { color: '#FF7A45', textDecorationLine: 'underline' },

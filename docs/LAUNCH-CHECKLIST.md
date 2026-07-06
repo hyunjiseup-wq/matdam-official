@@ -18,8 +18,8 @@
 - [x] B5. 금칙어 필터 — lib/moderation.ts, 닉네임·리뷰·메모·소개·피드백 저장 경로에 적용
 
 ## C. 네이티브 앱 전환 (Expo EAS)
-- [ ] C1. Expo SDK 51 → 최신 업그레이드 (Play target API 35 요건)
-- [ ] C2. 번들 ID 확정 (`com.example.*` → 실제, **출시 후 변경 불가**) + scheme `matdam`
+- [x] C1. Expo SDK 51 → 56 업그레이드 (RN 0.85·React 19·TS 6.0, Play API 35 충족) — tsc·export·브라우저 스모크 통과
+- [x] C2. 번들 ID `com.matdam.app` + scheme `matdam` (app.json) — 스토어 제출 전까지는 변경 가능
 - [ ] C3. 앱 아이콘(1024px)·스플래시·adaptiveIcon 제작 (현재 assets 없음)
 - [ ] C4. 네이티브 지도 (react-native-maps) — 현재 지도는 웹 전용
 - [ ] C5. expo-location — 네이티브 가까운순/내 위치

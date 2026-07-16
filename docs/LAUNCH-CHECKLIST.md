@@ -24,7 +24,7 @@
 - [x] C4. 네이티브 지도 — components/RestaurantMap 플랫폼 분리 (웹 Leaflet 유지 + 네이티브 react-native-maps, 마커·콜아웃·내위치). ⚠️ **Android 빌드 전 Google Maps API 키 필요** (app.json android.config.googleMaps.apiKey)
 - [x] C5. 위치 — lib/geo.ts (웹 geolocation / 네이티브 expo-location 공용), 가까운순 연결 + 한국어 권한 문구 플러그인
 - [x] C6. 공유 — 이미 크로스플랫폼 (네이티브 RN Share 시트 / 웹 클립보드), 코드 확인 완료
-- [ ] C7. 푸시 알림 (expo-notifications + 서버 트리거) — 첫 EAS 빌드 후 실기기로 검증하며 진행
+- [x] C7. 푸시 알림 — 클라이언트 토큰 등록(lib/push.ts) + push_tokens 테이블(migration15) + DB 트리거→Expo 푸시 API 직접 발송(migration16: 담김·피드백 답변 알림). 서버 파이프라인 실검증 완료(Expo HTTP 200 응답). ⚠️ **잔여: Android FCM(Firebase) 설정 + 실기기 수신 확인 — 스토어 제출용 최종 빌드 때 함께 진행** (푸시 실패해도 앱은 정상 동작)
 - [ ] C8. 딥링크 라우팅 검증 (matdam:// → 상세/리스트) — 스킴 설정 완료, 실기기 빌드에서 검증
 - [x] C9. EAS 빌드 — 프로젝트 연결(@halle1027/seoul-restaurant-list), 키스토어 EAS 자동 관리, GOOGLE_MAPS_API_KEY 환경변수(sensitive) 주입, 첫 preview APK 빌드 성공 (SDK 56, 2026-07-06)
 

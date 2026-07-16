@@ -22,13 +22,16 @@ function RootNavigator() {
 
   // 인증 가드: 로그인 안 됐으면 /login, 로그인됐는데 /login이면 홈으로
   // 비밀번호 찾기·재설정과 정책 문서는 로그인 전에도 볼 수 있어야 한다
+  // 웹에서 루트("/")로 처음 온 방문자는 로그인 대신 랜딩(/welcome)으로 —
+  // 딥링크(상세·리스트 등)와 네이티브 앱은 기존대로 로그인으로 보낸다
   useEffect(() => {
     if (loading) return;
     const seg = (segments[0] as string) ?? '';
-    const isPublic = ['login', 'forgot-password', 'reset-password', 'policy'].includes(seg);
+    const isPublic = ['login', 'forgot-password', 'reset-password', 'policy', 'welcome'].includes(seg);
     if (!user && !isPublic) {
-      router.replace('/login' as any);
-    } else if (user && seg === 'login') {
+      const toLanding = Platform.OS === 'web' && seg === '';
+      router.replace((toLanding ? '/welcome' : '/login') as any);
+    } else if (user && (seg === 'login' || seg === 'welcome')) {
       router.replace('/');
     }
   }, [user, loading, segments]);
@@ -53,6 +56,7 @@ function RootNavigator() {
       }}
     >
       <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="welcome" options={{ headerShown: false }} />
       <Stack.Screen
         name="index"
         options={{

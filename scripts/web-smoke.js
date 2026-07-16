@@ -63,8 +63,16 @@ async function main() {
     jsErrors.push('console: ' + m.text() + (url ? ' @ ' + url.slice(0, 120) : ''));
   });
 
-  // 1) 첫 로드 → 로그인 화면
+  // 1) 첫 로드(로그아웃) → 랜딩 페이지
   await page.goto(BASE, { waitUntil: 'networkidle2', timeout: 60000 });
+  const landingOk = await page
+    .waitForFunction(() => document.body.innerText.includes('무료로 시작하기'), { timeout: 30000 })
+    .then(() => true)
+    .catch(() => false);
+  check('landing page rendered', landingOk);
+
+  // 1.2) 로그인 화면
+  await page.goto(new URL('/login', BASE).href, { waitUntil: 'networkidle2', timeout: 60000 });
   const idInput = await page
     .waitForSelector('input[placeholder^="아이디"]', { timeout: 30000 })
     .catch(() => null);
@@ -82,7 +90,7 @@ async function main() {
     .then(() => true)
     .catch(() => false);
   check('forgot-password public route', forgotOk);
-  await page.goto(BASE, { waitUntil: 'networkidle2', timeout: 60000 });
+  await page.goto(new URL('/login', BASE).href, { waitUntil: 'networkidle2', timeout: 60000 });
   await page.waitForSelector('input[placeholder^="아이디"]', { timeout: 30000 });
 
   // 2) 로그인 ('로그인' 텍스트는 탭에도 있어 마지막 것이 제출 버튼)

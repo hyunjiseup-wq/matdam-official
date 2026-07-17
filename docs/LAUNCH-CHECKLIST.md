@@ -44,7 +44,7 @@
 - [x] E5. 비밀번호 정책 서버 강제 확인 — 8자 미만·숫자만·문자만 모두 거부됨 (실가입 테스트)
 
 ## F. 운영/안정성
-- [x] F1. 에러 로깅(Sentry) — 코드 준비 완료: lib/sentry 플랫폼 분리(웹 @sentry/browser, 네이티브 @sentry/react-native), EXPO_PUBLIC_SENTRY_DSN 있을 때만 활성(미설정 시 no-op). 더미 DSN 빌드로 웹 초기화 검증 완료. **사용자: sentry.io 무료 가입 → React Native 프로젝트 생성 → DSN 전달 (3곳 등록: 로컬 .env·Vercel·EAS)**. 스토어 제출용 최종 빌드 전 소스맵 플러그인(@sentry/react-native/expo) 추가 예정
+- [x] F1. 에러 로깅(Sentry) — 가동 중: lib/sentry 플랫폼 분리(웹 @sentry/browser, 네이티브 @sentry/react-native). DSN 3곳 등록 완료(로컬 .env·Vercel prod/preview/dev·EAS preview/production/development, 2026-07-17). 웹 프로덕션에서 실제 이벤트 전송 검증. 네이티브는 다음 EAS 빌드부터 포함. 스토어 제출용 최종 빌드 전 소스맵 플러그인(@sentry/react-native/expo) 추가 예정
 - [ ] F2. 업타임 모니터링 + Vercel/Supabase 사용량 알림
 - [ ] F3. DB 백업 — 주간 암호화 덤프 워크플로 준비 완료(.github/workflows/db-backup.yml, docs/BACKUP.md). **사용자: 저장소 시크릿 2개(SUPABASE_DB_URL·BACKUP_PASSPHRASE) 등록하면 활성화**
 - [x] F4. 조회 인덱스 8종 추가(migration14) — 리뷰·피드백·좋아요·신고·차단·컬렉션 경로. 텍스트/좌표 인덱스는 서버측 검색 도입 시(현재 전부 클라이언트 필터링)

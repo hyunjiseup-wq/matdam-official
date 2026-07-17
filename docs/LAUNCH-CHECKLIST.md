@@ -52,7 +52,7 @@
 - [x] F6. Nominatim 대응 — 역지오코딩 결과 24h 캐시(좌표 4자리 반올림) + 인스턴스당 1req/s 간격. 호출 자체가 구글 링크 붙여넣기 때만 발생해 저볼륨
 
 ## G. 측정 (KPI)
-- [x] G1. 분석(PostHog) — 코드 준비 완료: lib/analytics 플랫폼 분리(웹 posthog-js, 네이티브 posthog-react-native), EXPO_PUBLIC_POSTHOG_KEY 있을 때만 활성(미설정 시 no-op). 이벤트: 회원가입·맛집 등록(입력방식별)·맛집 담기·리스트 공유 + 웹 페이지뷰 자동 수집. 로그인 시 uid로 identify(개인정보 미전송)·로그아웃 시 reset. **사용자: posthog.com 무료 가입(US 리전) → 프로젝트 생성 → Project API Key(phc_…) 전달 (3곳 등록: .env·Vercel·EAS)**
+- [x] G1. 분석(PostHog) — **가동 중**: lib/analytics 플랫폼 분리(웹 posthog-js, 네이티브 posthog-react-native). 이벤트: 회원가입·맛집 등록(입력방식별)·맛집 담기·리스트 공유 + 웹 페이지뷰 자동 수집. 로그인 시 uid로 identify(개인정보 미전송)·로그아웃 시 reset. Project API Key 3곳 등록 완료(로컬 .env·Vercel prod/preview/dev·EAS preview/production/development, 2026-07-17), 웹 프로덕션 실전송 검증(이벤트 POST 200). 네이티브는 다음 EAS 빌드부터 포함. 참고: PostHog는 헤드리스 브라우저를 기본 차단 → 스모크 테스트 방문은 지표에 안 잡힘
 - [x] G2. 공유 링크 클릭 측정 — 공유 URL에 ?src=share 표식 추가, PostHog 페이지뷰로 유입 구분 (별도 단축링크 도입은 백로그)
 
 ## H. 콘텐츠/마케팅

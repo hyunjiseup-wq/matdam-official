@@ -6,10 +6,12 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import BottomTabBar from '@/components/BottomTabBar';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { RestaurantProvider } from '@/context/RestaurantContext';
+import { initAnalytics } from '@/lib/analytics';
 import { initErrorLogging } from '@/lib/sentry';
 
-// 에러 로깅은 앱 코드가 실행되기 전에 가장 먼저 켠다 (DSN 미설정 시 no-op)
+// 에러 로깅·사용 분석은 앱 코드가 실행되기 전에 가장 먼저 켠다 (키 미설정 시 no-op)
 initErrorLogging();
+initAnalytics();
 
 function HeaderIcon({ name, onPress }: { name: any; onPress: () => void }) {
   return (

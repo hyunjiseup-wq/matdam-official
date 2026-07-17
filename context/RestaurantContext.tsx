@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import { inferDistrictFromAddress } from '@/constants/filters';
 import { useAuth } from '@/context/AuthContext';
+import { track } from '@/lib/analytics';
 import { prepareImageForUpload } from '@/lib/imagePrep';
 import { assertClean } from '@/lib/moderation';
 import { supabase } from '@/lib/supabase';
@@ -369,6 +370,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       if (err) throw new Error(err.message);
       setRestaurants((prev) => [fromRow(row as SupabaseRow), ...prev]);
       invalidateDiscoverCache();
+      track('맛집 등록', { 입력방식: data.map_source ?? '직접입력' });
       return newId;
     },
     [userId, invalidateDiscoverCache],
@@ -477,6 +479,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       if (err) throw new Error(err.message);
       setRestaurants((prev) => [fromRow(row as SupabaseRow), ...prev]);
       invalidateDiscoverCache();
+      track('맛집 담기');
       return newId;
     },
     [userId, invalidateDiscoverCache],

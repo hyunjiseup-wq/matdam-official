@@ -1,6 +1,7 @@
 import { Session, User } from '@supabase/supabase-js';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { emailFromId, isAdminEmail } from '@/lib/admin';
+import { identifyUser, resetAnalytics, track } from '@/lib/analytics';
 import { assertClean } from '@/lib/moderation';
 import { registerPushToken, unregisterPushToken } from '@/lib/push';
 import { supabase } from '@/lib/supabase';
@@ -64,9 +65,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user?.id, displayName]);
 
   // 로그인 시 이 기기의 푸시 토큰 등록 (네이티브 전용, 실패해도 무시)
+  // + 분석 도구에 사용자 연결 (uid만 — 개인정보 미전송)
   useEffect(() => {
     if (!user) return;
     registerPushToken(user.id);
+    identifyUser(user.id);
   }, [user?.id]);
 
   const signIn = useCallback(async (id: string, password: string) => {
@@ -86,10 +89,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       options: { data: { display_name: name } },
     });
     if (error) throw new Error(error.message);
+    track('회원가입');
   }, []);
 
   const signOut = useCallback(async () => {
     await unregisterPushToken();
+    resetAnalytics();
     await supabase.auth.signOut();
   }, []);
 

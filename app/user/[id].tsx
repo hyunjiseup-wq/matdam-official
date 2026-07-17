@@ -19,6 +19,7 @@ import ReportModal from '@/components/ReportModal';
 import RestaurantCard from '@/components/RestaurantCard';
 import SearchBar from '@/components/SearchBar';
 import { CATEGORIES, PROVINCES, inferDistrictFromAddress, inferProvinceFromAddress } from '@/constants/filters';
+import { track } from '@/lib/analytics';
 import { confirmAction, notify } from '@/lib/confirm';
 import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
@@ -148,7 +149,9 @@ export default function UserListScreen() {
   }
 
   async function shareList() {
-    const url = `${SITE}/user/${id}`;
+    // ?src=share: 공유 링크로 들어온 방문을 분석(페이지뷰)에서 구분하기 위한 표식
+    const url = `${SITE}/user/${id}?src=share`;
+    track('리스트 공유', { 방식: Platform.OS === 'web' ? '링크복사' : '공유시트' });
     if (Platform.OS === 'web') {
       try {
         await (navigator as any).clipboard.writeText(url);

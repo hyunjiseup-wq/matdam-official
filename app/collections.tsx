@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BrandIcon from '@/components/BrandIcon';
 import { confirmAction, notify } from '@/lib/confirm';
 import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
@@ -148,7 +149,13 @@ export default function CollectionsScreen() {
             onPress={() => router.push(`/collection/${item.id}` as any)}
           >
             <View style={styles.cardTop}>
-              <Text style={styles.cardEmoji}>{item.emoji || '🍽️'}</Text>
+              {item.emoji ? (
+                <Text style={styles.cardEmoji}>{item.emoji}</Text>
+              ) : (
+                <View style={styles.cardIconWrap}>
+                  <BrandIcon name="bowl" size={22} color="#FF7A45" />
+                </View>
+              )}
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardTitle}>{item.title}</Text>
                 {item.description ? (
@@ -174,7 +181,9 @@ export default function CollectionsScreen() {
         )}
         ListEmptyComponent={
           <View style={styles.emptyBox}>
-            <Text style={styles.emptyEmoji}>🧭</Text>
+            <View style={styles.emptyIconWrap}>
+              <BrandIcon name="compass" size={34} color="#FF7A45" />
+            </View>
             <Text style={styles.emptyTitle}>아직 컬렉션이 없어요</Text>
             <Text style={styles.emptySub}>곧 테마별 맛집 큐레이션이 올라올 예정이에요</Text>
           </View>
@@ -244,6 +253,7 @@ const styles = StyleSheet.create({
   },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   cardEmoji: { fontSize: 32 },
+  cardIconWrap: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#FFF0E9', alignItems: 'center', justifyContent: 'center' },
   cardTitle: { fontSize: 16, fontWeight: '800', color: '#1a1a1a' },
   cardDesc: { fontSize: 12.5, color: '#888', marginTop: 2, lineHeight: 17 },
   cardCount: { fontSize: 12, color: '#FF7A45', fontWeight: '600', marginTop: 4 },
@@ -251,7 +261,7 @@ const styles = StyleSheet.create({
   previewImg: { flex: 1, height: 76, borderRadius: 8, backgroundColor: '#f0f0f0' },
 
   emptyBox: { alignItems: 'center', paddingTop: 80, gap: 8 },
-  emptyEmoji: { fontSize: 52 },
+  emptyIconWrap: { width: 72, height: 72, borderRadius: 24, backgroundColor: '#FFF0E9', alignItems: 'center', justifyContent: 'center' },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: '#444' },
   emptySub: { fontSize: 13, color: '#aaa' },
 });

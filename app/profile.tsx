@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BrandIcon from '@/components/BrandIcon';
 import Avatar from '@/components/Avatar';
 import { confirmAction, notify } from '@/lib/confirm';
 import { AVATAR_MAX_DIM } from '@/lib/imagePrep';
@@ -81,7 +82,7 @@ export default function ProfileScreen() {
       await registerEmail(securityEmail);
       setSecurityEmail('');
       notify(
-        '인증 메일을 보냈어요 📮',
+        '인증 메일을 보냈어요',
         '메일함에서 링크를 누르면 등록이 완료돼요.\n등록 후에는 아이디 대신 이 이메일로 로그인해주세요!',
       );
     } catch (e: any) {
@@ -100,7 +101,7 @@ export default function ProfileScreen() {
     try {
       await changePassword(newPw);
       setNewPw('');
-      notify('변경 완료 ✅', '다음 로그인부터 새 비밀번호를 사용하세요.');
+      notify('변경 완료', '다음 로그인부터 새 비밀번호를 사용하세요.');
     } catch (e: any) {
       notify('변경 실패', e.message ?? '다시 시도해주세요.');
     } finally {
@@ -208,7 +209,10 @@ export default function ProfileScreen() {
           {/* 인플루언서 지표 */}
           {influence && (
             <View style={styles.influCard}>
-              <Text style={styles.influTitle}>📊 내 영향력</Text>
+              <View style={styles.titleIconRow}>
+              <BrandIcon name="chart" size={14} color="#FF7A45" />
+              <Text style={styles.influTitle}>내 영향력</Text>
+            </View>
               <View style={styles.influStats}>
                 <View style={styles.influStat}>
                   <Text style={styles.influNum}>{influence.adopterCount}</Text>
@@ -222,20 +226,23 @@ export default function ProfileScreen() {
               </View>
               {influence.topRestaurants.length > 0 ? (
                 <View style={styles.influList}>
-                  <Text style={styles.influListTitle}>🔥 가장 많이 담긴 내 맛집</Text>
+                  <View style={styles.titleIconRow}>
+              <BrandIcon name="fire" size={14} color="#FF7A45" />
+              <Text style={styles.influListTitle}>가장 많이 담긴 내 맛집</Text>
+            </View>
                   {influence.topRestaurants.map((r, i) => (
                     <View key={i} style={styles.influRow}>
                       <Text style={styles.influRank}>{i + 1}</Text>
                       <Text style={styles.influName} numberOfLines={1}>
                         {r.name}
-                        {r.area ? <Text style={styles.influArea}>  📍{r.area}</Text> : null}
+                        {r.area ? <Text style={styles.influArea}>  · {r.area}</Text> : null}
                       </Text>
                       <Text style={styles.influCount}>{r.othersCount}명</Text>
                     </View>
                   ))}
                 </View>
               ) : (
-                <Text style={styles.influEmpty}>아직 담아간 사람이 없어요. 리스트를 공유해보세요! 🔗</Text>
+                <Text style={styles.influEmpty}>아직 담아간 사람이 없어요. 리스트를 공유해보세요!</Text>
               )}
             </View>
           )}
@@ -261,7 +268,7 @@ export default function ProfileScreen() {
             textAlignVertical="top"
           />
 
-          <Text style={styles.label}>📍 관심 지역 (홈에 추천 맛집이 떠요)</Text>
+          <Text style={styles.label}>관심 지역 (홈에 추천 맛집이 떠요)</Text>
           <TextInput
             style={styles.input}
             value={preferredRegion}
@@ -306,7 +313,10 @@ export default function ProfileScreen() {
               <Ionicons name="book-outline" size={20} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.guideTitle}>📖 앱 사용법 가이드</Text>
+              <View style={styles.titleIconRow}>
+              <BrandIcon name="bookmark" size={14} color="#FF7A45" />
+              <Text style={styles.guideTitle}>앱 사용법 가이드</Text>
+            </View>
               <Text style={styles.guideSub}>맛담 200% 활용법, 3분이면 끝!</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
@@ -314,7 +324,10 @@ export default function ProfileScreen() {
 
           {/* 로그인·보안: 이메일 등록(비밀번호 찾기용) + 비밀번호 변경 */}
           <View style={styles.securityCard}>
-            <Text style={styles.securityTitle}>🔐 로그인 · 보안</Text>
+            <View style={styles.titleIconRow}>
+              <BrandIcon name="lock" size={14} color="#6C5CE7" />
+              <Text style={styles.securityTitle}>로그인 · 보안</Text>
+            </View>
 
             <Text style={styles.label}>이메일 {hasRealEmail ? '(등록됨)' : '(미등록)'}</Text>
             {hasRealEmail && <Text style={styles.securityEmailNow}>{user?.email}</Text>}
@@ -361,7 +374,10 @@ export default function ProfileScreen() {
           {/* 차단 관리 */}
           {blockedList.length > 0 && (
             <View style={styles.blockedCard}>
-              <Text style={styles.blockedTitle}>🚫 차단한 사용자 ({blockedList.length})</Text>
+              <View style={styles.titleIconRow}>
+              <BrandIcon name="block" size={14} color="#888" />
+              <Text style={styles.blockedTitle}>차단한 사용자 ({blockedList.length})</Text>
+            </View>
               {blockedList.map((b) => (
                 <View key={b.id} style={styles.blockedRow}>
                   <Text style={styles.blockedName} numberOfLines={1}>{b.display_name}</Text>
@@ -399,6 +415,7 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  titleIconRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   safe: { flex: 1, backgroundColor: '#F5F5F5' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 16, paddingBottom: 96 },

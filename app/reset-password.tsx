@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BrandIcon from '@/components/BrandIcon';
 import { useAuth } from '@/context/AuthContext';
 import { notify } from '@/lib/confirm';
 
@@ -27,7 +28,7 @@ export default function ResetPasswordScreen() {
     setSaving(true);
     try {
       await changePassword(pw1);
-      notify('변경 완료 ✅', '새 비밀번호로 저장됐어요. 다음 로그인부터 사용하세요.');
+      notify('변경 완료', '새 비밀번호로 저장됐어요. 다음 로그인부터 사용하세요.');
       router.replace('/');
     } catch (e: any) {
       notify('변경 실패', e.message ?? '다시 시도해주세요.');
@@ -51,7 +52,9 @@ export default function ResetPasswordScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.content}>
-          <Text style={styles.emoji}>⏰</Text>
+          <View style={styles.heroIconWrap}>
+            <BrandIcon name="warning" size={34} color="#FF7A45" />
+          </View>
           <Text style={styles.title}>링크가 만료됐어요</Text>
           <Text style={styles.sub}>
             재설정 링크는 일정 시간이 지나면 만료돼요.{'\n'}다시 요청해주세요.
@@ -67,7 +70,9 @@ export default function ResetPasswordScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.content}>
-        <Text style={styles.emoji}>🔒</Text>
+        <View style={styles.heroIconWrap}>
+          <BrandIcon name="lock" size={34} color="#FF7A45" />
+        </View>
         <Text style={styles.title}>새 비밀번호 설정</Text>
         <Text style={styles.sub}>8자 이상, 영문과 숫자를 포함해주세요.</Text>
 
@@ -107,7 +112,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#fff' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 24, paddingTop: 60, alignItems: 'center' },
-  emoji: { fontSize: 48 },
+  heroIconWrap: { width: 72, height: 72, borderRadius: 24, backgroundColor: '#FFF0E9', alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: '800', color: '#1a1a1a', marginTop: 10 },
   sub: { fontSize: 14, color: '#999', marginTop: 8, textAlign: 'center', lineHeight: 21, marginBottom: 28 },
   input: {

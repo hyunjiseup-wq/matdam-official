@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BrandIcon from '@/components/BrandIcon';
 import { useAuth } from '@/context/AuthContext';
 
 export default function LoginScreen() {
@@ -69,9 +71,9 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          {/* 로고 */}
+          {/* 로고 — 브랜드 마크 (핀 속 밥그릇) */}
           <View style={styles.logoArea}>
-            <Text style={styles.logoEmoji}>🍽️</Text>
+            <Image source={require('@/assets/icon.png')} style={styles.logoMark} />
             <Text style={styles.logoTitle}>맛담</Text>
             <Text style={styles.logoSub}>맛집을 담고, 친구와 나누는 공간</Text>
           </View>
@@ -125,10 +127,13 @@ export default function LoginScreen() {
               onSubmitEditing={handleSubmit}
             />
             {mode === 'signup' && (
-              <Text style={styles.notice}>
-                ⚠️ 개인 이메일·비밀번호 말고{'\n'}새 아이디와 비밀번호를 만들어 쓰세요!{'\n'}
-                가입 후 마이 탭에서 이메일을 등록하면{'\n'}비밀번호를 잊어도 찾을 수 있어요.
-              </Text>
+              <View style={styles.noticeBox}>
+                <BrandIcon name="warning" size={16} color="#E17055" />
+                <Text style={styles.notice}>
+                  개인 이메일·비밀번호 말고{'\n'}새 아이디와 비밀번호를 만들어 쓰세요!{'\n'}
+                  가입 후 마이 탭에서 이메일을 등록하면{'\n'}비밀번호를 잊어도 찾을 수 있어요.
+                </Text>
+              </View>
             )}
 
             <Pressable
@@ -179,7 +184,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#fff' },
   content: { padding: 24, paddingTop: 60, gap: 0 },
   logoArea: { alignItems: 'center', marginBottom: 40 },
-  logoEmoji: { fontSize: 56 },
+  logoMark: { width: 76, height: 76, borderRadius: 20 },
   logoTitle: { fontSize: 24, fontWeight: '800', color: '#1a1a1a', marginTop: 8 },
   logoSub: { fontSize: 14, color: '#999', marginTop: 6, textAlign: 'center' },
   tabRow: { flexDirection: 'row', marginBottom: 20, borderRadius: 12, backgroundColor: '#f5f5f5', padding: 4 },
@@ -214,16 +219,20 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  notice: {
-    fontSize: 12,
-    color: '#E17055',
-    lineHeight: 18,
-    textAlign: 'center',
+  noticeBox: {
+    alignItems: 'center',
+    gap: 6,
     backgroundColor: '#FFF4F0',
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 12,
     marginTop: 2,
+  },
+  notice: {
+    fontSize: 12,
+    color: '#E17055',
+    lineHeight: 18,
+    textAlign: 'center',
   },
   hint: { textAlign: 'center', fontSize: 13, color: '#bbb', marginTop: 8 },
   forgotLink: {

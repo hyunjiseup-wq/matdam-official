@@ -66,7 +66,7 @@ function RootNavigator() {
       <Stack.Screen
         name="index"
         options={{
-          title: '🍽️ 맛담',
+          title: '맛담',
           headerLeft: () => (
             <Pressable
               onPress={signOut}
@@ -92,7 +92,7 @@ function RootNavigator() {
       />
       <Stack.Screen name="discover" options={{ title: '전체 맛집' }} />
       <Stack.Screen name="collections" options={{ title: '테마 컬렉션' }} />
-      <Stack.Screen name="map" options={{ title: '🗺️ 맛집 지도' }} />
+      <Stack.Screen name="map" options={{ title: '맛집 지도' }} />
       <Stack.Screen name="forgot-password" options={{ title: '비밀번호 찾기' }} />
       <Stack.Screen name="reset-password" options={{ title: '비밀번호 재설정' }} />
       <Stack.Screen name="policy/privacy" options={{ title: '개인정보처리방침' }} />

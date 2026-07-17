@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BrandIcon from '@/components/BrandIcon';
 import { notify } from '@/lib/confirm';
 import { useRestaurants } from '@/context/RestaurantContext';
 
@@ -72,7 +73,12 @@ export default function ReviewScreen() {
           {restaurant && (
             <View style={styles.restaurantTag}>
               <Text style={styles.restaurantName}>{restaurant.name}</Text>
-              {restaurant.area && <Text style={styles.restaurantArea}>📍 {restaurant.area}</Text>}
+              {restaurant.area && (
+                <View style={styles.restaurantAreaRow}>
+                  <BrandIcon name="pin" size={11} color="#999" />
+                  <Text style={styles.restaurantArea}>{restaurant.area}</Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -124,6 +130,7 @@ const styles = StyleSheet.create({
   },
   restaurantName: { fontSize: 16, fontWeight: '700', color: '#1a1a1a' },
   restaurantArea: { fontSize: 13, color: '#888' },
+  restaurantAreaRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   sectionLabel: { fontSize: 14, fontWeight: '600', color: '#555' },
   textarea: {
     backgroundColor: '#fff',

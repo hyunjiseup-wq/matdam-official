@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import BrandIcon from '@/components/BrandIcon';
 
 interface Props {
   title?: string;
@@ -12,7 +13,9 @@ export default function EmptyState({
 }: Props) {
   return (
     <View style={styles.container}>
-      <Text style={styles.emoji}>🍽️</Text>
+      <View style={styles.iconWrap}>
+        <BrandIcon name="bowl" size={34} color="#FF7A45" />
+      </View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.subtitle}>{subtitle}</Text>
     </View>
@@ -27,7 +30,15 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
     gap: 8,
   },
-  emoji: { fontSize: 48, marginBottom: 8 },
+  iconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    backgroundColor: '#FFF0E9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
   title: { fontSize: 18, fontWeight: '700', color: '#333' },
   subtitle: { fontSize: 14, color: '#999' },
 });

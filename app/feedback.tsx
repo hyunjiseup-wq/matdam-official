@@ -15,10 +15,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRestaurants } from '@/context/RestaurantContext';
 
 const TYPES = [
-  { value: 'general', label: '💬 일반 피드백', color: '#6C5CE7' },
-  { value: 'feature', label: '✨ 기능 요청', color: '#00B894' },
-  { value: 'bug', label: '🐛 버그 신고', color: '#FF7A45' },
-  { value: 'data', label: '📍 맛집 정보 수정', color: '#FDCB6E' },
+  { value: 'general', label: '일반 피드백', color: '#6C5CE7' },
+  { value: 'feature', label: '기능 요청', color: '#00B894' },
+  { value: 'bug', label: '버그 신고', color: '#FF7A45' },
+  { value: 'data', label: '맛집 정보 수정', color: '#FDCB6E' },
 ];
 
 export default function FeedbackScreen() {
@@ -57,7 +57,7 @@ export default function FeedbackScreen() {
             <Ionicons name="checkmark" size={48} color="#fff" />
           </View>
           <Text style={styles.doneTitle}>피드백이 전송됐어요!</Text>
-          <Text style={styles.doneSub}>소중한 의견 정말 감사합니다 😊</Text>
+          <Text style={styles.doneSub}>소중한 의견 정말 감사합니다!</Text>
           <Pressable
             onPress={() => router.back()}
             style={({ pressed }) => [styles.doneBtn, pressed && { opacity: 0.85 }]}

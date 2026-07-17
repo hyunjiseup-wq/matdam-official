@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BrandIcon from '@/components/BrandIcon';
 import Avatar from '@/components/Avatar';
 import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
@@ -91,9 +92,11 @@ export default function ExploreScreen() {
                     </View>
                   )}
                 </View>
-                <Text style={styles.userMeta}>
-                  맛집 {item.count ?? 0} · 👀 {item.view_count ?? 0}
-                </Text>
+                <View style={styles.userMetaRow}>
+                  <Text style={styles.userMeta}>맛집 {item.count ?? 0} · </Text>
+                  <BrandIcon name="eye" size={11} color="#999" />
+                  <Text style={styles.userMeta}> {item.view_count ?? 0}</Text>
+                </View>
                 {item.sns_url ? (
                   <Pressable
                     onPress={(e) => {
@@ -133,7 +136,7 @@ export default function ExploreScreen() {
         }}
         ListHeaderComponent={
           <Text style={styles.header}>
-            인기순으로 정렬돼요 🔥 좋아요·조회수가 많은 리스트가 위로!
+            인기순으로 정렬돼요 — 좋아요·조회수가 많은 리스트가 위로!
           </Text>
         }
         ListEmptyComponent={
@@ -183,6 +186,7 @@ const styles = StyleSheet.create({
   adminBadge: { backgroundColor: '#FFE8E8', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
   adminBadgeText: { fontSize: 11, color: '#FF7A45', fontWeight: '700' },
   userMeta: { fontSize: 13, color: '#999', marginTop: 2 },
+  userMetaRow: { flexDirection: 'row', alignItems: 'center' },
   snsRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 },
   snsText: { fontSize: 12, color: '#E1306C', maxWidth: 180 },
   likeBtn: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, minWidth: 36 },

@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BrandIcon from '@/components/BrandIcon';
 import Avatar from '@/components/Avatar';
 import ChipRow from '@/components/ChipRow';
 import ReportModal from '@/components/ReportModal';
@@ -155,12 +156,12 @@ export default function UserListScreen() {
     if (Platform.OS === 'web') {
       try {
         await (navigator as any).clipboard.writeText(url);
-        notify('링크 복사됨!', '인스타·카톡에 붙여넣기 하세요 🔗');
+        notify('링크 복사됨!', '인스타·카톡에 붙여넣기 하세요');
       } catch {
         notify('공유 링크', url);
       }
     } else {
-      Share.share({ message: `${owner?.display_name ?? ''}님의 맛집 리스트 👉 ${url}` });
+      Share.share({ message: `${owner?.display_name ?? ''}님의 맛집 리스트 → ${url}` });
     }
   }
 
@@ -215,9 +216,13 @@ export default function UserListScreen() {
                         </View>
                       )}
                     </View>
-                    <Text style={styles.stats}>
-                      맛집 {owner.count ?? items.length} · ❤️ {owner.like_count ?? 0} · 👀 {owner.view_count ?? 0}
-                    </Text>
+                    <View style={styles.statsRow}>
+                      <Text style={styles.stats}>맛집 {owner.count ?? items.length} · </Text>
+                      <BrandIcon name="heart" size={11} color="#FF7A45" />
+                      <Text style={styles.stats}> {owner.like_count ?? 0} · </Text>
+                      <BrandIcon name="eye" size={11} color="#999" />
+                      <Text style={styles.stats}> {owner.view_count ?? 0}</Text>
+                    </View>
                   </View>
                 </View>
 
@@ -260,13 +265,13 @@ export default function UserListScreen() {
                 {!isMyList && (
                   <View style={styles.modRow}>
                     <Pressable onPress={() => setReportOpen(true)} hitSlop={6}>
-                      <Text style={styles.modText}>🚩 신고</Text>
+                      <View style={styles.modItem}><BrandIcon name="flag" size={11} color="#aaa" /><Text style={styles.modText}>신고</Text></View>
                     </Pressable>
                     {!owner.is_admin && (
                       <>
                         <Text style={styles.modDivider}>·</Text>
                         <Pressable onPress={handleBlockOwner} hitSlop={6}>
-                          <Text style={styles.modText}>🚫 차단</Text>
+                          <View style={styles.modItem}><BrandIcon name="block" size={11} color="#aaa" /><Text style={styles.modText}>차단</Text></View>
                         </Pressable>
                       </>
                     )}
@@ -402,6 +407,8 @@ const styles = StyleSheet.create({
   adminBadge: { backgroundColor: '#FFE8E8', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
   adminBadgeText: { fontSize: 11, color: '#FF7A45', fontWeight: '700' },
   stats: { fontSize: 13, color: '#999', marginTop: 3 },
+  statsRow: { flexDirection: 'row', alignItems: 'center' },
+  modItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   bio: { fontSize: 14, color: '#555', lineHeight: 20 },
   snsBtn: {
     flexDirection: 'row',

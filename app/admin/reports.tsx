@@ -16,9 +16,9 @@ import { useRestaurants } from '@/context/RestaurantContext';
 import { Report, ReportStatus } from '@/types/restaurant';
 
 const TYPE_LABEL: Record<Report['target_type'], { label: string; color: string; bg: string }> = {
-  restaurant: { label: '🍽️ 맛집', color: '#FF7A45', bg: '#FFF4F0' },
-  review: { label: '⭐ 리뷰', color: '#E1A100', bg: '#FFF8E8' },
-  profile: { label: '👤 리스트/프로필', color: '#6C5CE7', bg: '#F0EEFF' },
+  restaurant: { label: '맛집', color: '#FF7A45', bg: '#FFF4F0' },
+  review: { label: '리뷰', color: '#E1A100', bg: '#FFF8E8' },
+  profile: { label: '리스트/프로필', color: '#6C5CE7', bg: '#F0EEFF' },
 };
 
 const STATUS_LABEL: Record<ReportStatus, { label: string; color: string }> = {

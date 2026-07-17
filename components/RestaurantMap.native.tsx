@@ -2,6 +2,7 @@
 // 웹은 RestaurantMap.tsx (Leaflet)가 대신 로드된다.
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
+import BrandIcon from '@/components/BrandIcon';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import MapView, { Callout, Marker } from 'react-native-maps';
@@ -90,13 +91,16 @@ export default function RestaurantMap() {
                 <View style={styles.callout}>
                   <Text style={styles.calloutName} numberOfLines={1}>{it.name}</Text>
                   <Text style={styles.calloutInfo} numberOfLines={1}>
-                    {[it.category, it.area, it.price_range ? '💰 ' + it.price_range : '']
+                    {[it.category, it.area, it.price_range]
                       .filter(Boolean)
                       .join(' · ')}
                   </Text>
-                  <Text style={styles.calloutHot}>
-                    🔥 {it.addedCount}명 담음{it.avgRating > 0 ? ` · ★ ${it.avgRating.toFixed(1)}` : ''}
-                  </Text>
+                  <View style={styles.calloutHotRow}>
+                    <BrandIcon name="fire" size={11} color="#FF7A45" />
+                    <Text style={styles.calloutHot}>
+                      {it.addedCount}명 담음{it.avgRating > 0 ? ` · ${it.avgRating.toFixed(1)}점` : ''}
+                    </Text>
+                  </View>
                   <Text style={styles.calloutBtn}>상세 보기 →</Text>
                 </View>
               </Callout>
@@ -111,8 +115,9 @@ export default function RestaurantMap() {
       )}
       {!loading && (
         <View style={styles.countBadge}>
+          <BrandIcon name="bowl" size={13} color="#FF7A45" />
           <Text style={styles.countText}>
-            🍽️ {items.length}곳 표시{missing > 0 ? ` (좌표 없는 ${missing}곳 제외)` : ''}
+            {items.length}곳 표시{missing > 0 ? ` (좌표 없는 ${missing}곳 제외)` : ''}
           </Text>
         </View>
       )}
@@ -139,6 +144,7 @@ const styles = StyleSheet.create({
   calloutName: { fontWeight: '700', fontSize: 14, marginBottom: 2, color: '#333' },
   calloutInfo: { fontSize: 12, color: '#888' },
   calloutHot: { fontSize: 12, color: '#FF7A45', marginTop: 3 },
+  calloutHotRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   calloutBtn: {
     marginTop: 8,
     textAlign: 'center',
@@ -160,7 +166,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(245,245,245,0.7)',
   },
-  countBadge: {
+  countBadge: { flexDirection: 'row', alignItems: 'center', gap: 5,
     position: 'absolute',
     bottom: 14,
     alignSelf: 'center',

@@ -19,10 +19,10 @@ import { useRestaurants } from '@/context/RestaurantContext';
 import { Feedback, FeedbackReply, FeedbackStatus } from '@/types/restaurant';
 
 const TYPE_LABEL: Record<string, string> = {
-  general: '💬 일반',
-  feature: '✨ 기능 요청',
-  bug: '🐛 버그',
-  data: '📍 정보 수정',
+  general: '일반',
+  feature: '기능 요청',
+  bug: '버그',
+  data: '정보 수정',
 };
 
 const STATUS_LABEL: Record<FeedbackStatus, { label: string; color: string; bg: string }> = {
@@ -172,7 +172,7 @@ export default function FeedbackThreadScreen() {
                 <View key={r.id} style={[styles.bubbleRow, mine ? styles.rowRight : styles.rowLeft]}>
                   <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleOther, r.is_admin && styles.bubbleAdmin]}>
                     <Text style={[styles.bubbleName, mine && { color: '#ffffffcc' }]}>
-                      {r.display_name}{r.is_admin ? ' 👑' : ''}
+                      {r.display_name}{r.is_admin ? ' · 운영자' : ''}
                     </Text>
                     <Text style={[styles.bubbleText, mine && { color: '#fff' }]}>{r.content}</Text>
                   </View>

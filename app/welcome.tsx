@@ -11,19 +11,20 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BrandIcon, { BrandIconName } from '@/components/BrandIcon';
 
 // 3초 등록 데모: 자동으로 순환하는 3단계
-const DEMO_STEPS = [
-  { emoji: '🔗', title: '지도 링크 복사', desc: '네이버·구글 지도에서\n가게 링크를 복사하고' },
-  { emoji: '📋', title: '맛담에 붙여넣기', desc: '추가 화면에\n그대로 붙여넣으면' },
-  { emoji: '✨', title: '자동 완성!', desc: '이름·주소·지도까지\n3초 만에 채워져요' },
+const DEMO_STEPS: { icon: BrandIconName; title: string; desc: string }[] = [
+  { icon: 'link', title: '지도 링크 복사', desc: '네이버·구글 지도에서\n가게 링크를 복사하고' },
+  { icon: 'clipboard', title: '맛담에 붙여넣기', desc: '추가 화면에\n그대로 붙여넣으면' },
+  { icon: 'sparkle', title: '자동 완성!', desc: '이름·주소·지도까지\n3초 만에 채워져요' },
 ];
 
-const FEATURES = [
-  { emoji: '🗺️', title: '지도로 한눈에', desc: '담은 맛집을 지도 위에서 바로' },
-  { emoji: '🧭', title: '테마 컬렉션', desc: '데이트·혼밥·노포, 상황별 모음' },
-  { emoji: '💛', title: '둘러보고 담기', desc: '다른 사람 리스트에서 원클릭 저장' },
-  { emoji: '⭐', title: '리뷰·별점', desc: '함께 쌓는 진짜 방문 후기' },
+const FEATURES: { icon: BrandIconName; title: string; desc: string }[] = [
+  { icon: 'map', title: '지도로 한눈에', desc: '담은 맛집을 지도 위에서 바로' },
+  { icon: 'compass', title: '테마 컬렉션', desc: '데이트·혼밥·노포, 상황별 모음' },
+  { icon: 'heart', title: '둘러보고 담기', desc: '다른 사람 리스트에서 원클릭 저장' },
+  { icon: 'star', title: '리뷰·별점', desc: '함께 쌓는 진짜 방문 후기' },
 ];
 
 export default function WelcomeScreen() {
@@ -70,10 +71,12 @@ export default function WelcomeScreen() {
 
         {/* 3초 등록 데모 */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>등록은 3초면 끝 ⚡</Text>
+          <Text style={styles.sectionTitle}>등록은 3초면 끝</Text>
           <View style={styles.demoCard}>
             <Animated.View style={[styles.demoInner, { opacity: fade }]}>
-              <Text style={styles.demoEmoji}>{demo.emoji}</Text>
+              <View style={styles.demoIconWrap}>
+                <BrandIcon name={demo.icon} size={30} color="#FF7A45" />
+              </View>
               <Text style={styles.demoTitle}>{demo.title}</Text>
               <Text style={styles.demoDesc}>{demo.desc}</Text>
             </Animated.View>
@@ -91,7 +94,9 @@ export default function WelcomeScreen() {
           <View style={styles.featureGrid}>
             {FEATURES.map((f) => (
               <View key={f.title} style={styles.featureCard}>
-                <Text style={styles.featureEmoji}>{f.emoji}</Text>
+                <View style={styles.featureIconWrap}>
+                  <BrandIcon name={f.icon} size={22} color="#FF7A45" />
+                </View>
                 <Text style={styles.featureTitle}>{f.title}</Text>
                 <Text style={styles.featureDesc}>{f.desc}</Text>
               </View>
@@ -101,7 +106,7 @@ export default function WelcomeScreen() {
 
         {/* 앱 설치 (스토어 출시 전까지는 준비 중 표기) */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>앱으로도 만나요 📱</Text>
+          <Text style={styles.sectionTitle}>앱으로도 만나요</Text>
           <View style={styles.storeRow}>
             <View style={styles.storeBtn}>
               <Ionicons name="logo-google-playstore" size={20} color="#888" />
@@ -183,7 +188,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   demoInner: { alignItems: 'center', height: 118, justifyContent: 'center' },
-  demoEmoji: { fontSize: 40 },
+  demoIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: '#FFE4D6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   demoTitle: { fontSize: 16, fontWeight: '800', color: '#E05B22', marginTop: 8 },
   demoDesc: { fontSize: 13, color: '#B8734F', textAlign: 'center', lineHeight: 19, marginTop: 6 },
   dotRow: { flexDirection: 'row', gap: 6, marginTop: 12 },
@@ -200,7 +212,14 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 4,
   },
-  featureEmoji: { fontSize: 26 },
+  featureIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    backgroundColor: '#FFF0E9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   featureTitle: { fontSize: 14, fontWeight: '800', color: '#222', marginTop: 4 },
   featureDesc: { fontSize: 12, color: '#999', lineHeight: 17 },
   storeRow: { flexDirection: 'row', gap: 10, justifyContent: 'center' },

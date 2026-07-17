@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BrandIcon from '@/components/BrandIcon';
 import RestaurantCard from '@/components/RestaurantCard';
 import { notify } from '@/lib/confirm';
 import { useAuth } from '@/context/AuthContext';
@@ -146,7 +147,13 @@ export default function CollectionDetailScreen() {
           <>
             {/* 컬렉션 헤더 */}
             <View style={styles.header}>
-              <Text style={styles.headerEmoji}>{collection.emoji || '🍽️'}</Text>
+              {collection.emoji ? (
+                <Text style={styles.headerEmoji}>{collection.emoji}</Text>
+              ) : (
+                <View style={styles.headerIconWrap}>
+                  <BrandIcon name="bowl" size={30} color="#FF7A45" />
+                </View>
+              )}
               <Text style={styles.headerTitle}>{collection.title}</Text>
               {collection.description ? (
                 <Text style={styles.headerDesc}>{collection.description}</Text>
@@ -181,7 +188,7 @@ export default function CollectionDetailScreen() {
                             <Image source={{ uri: it.image_url }} style={styles.candImg} />
                           ) : (
                             <View style={[styles.candImg, styles.candImgEmpty]}>
-                              <Text>🍽️</Text>
+                              <BrandIcon name="bowl" size={18} color="#FFB694" />
                             </View>
                           )}
                           <View style={{ flex: 1 }}>
@@ -229,7 +236,13 @@ export default function CollectionDetailScreen() {
         }}
         ListEmptyComponent={
           <View style={styles.emptyBox}>
-            <Text style={styles.emptyEmoji}>{collection.emoji || '🍽️'}</Text>
+            {collection.emoji ? (
+              <Text style={styles.emptyEmoji}>{collection.emoji}</Text>
+            ) : (
+              <View style={styles.headerIconWrap}>
+                <BrandIcon name="bowl" size={30} color="#FF7A45" />
+              </View>
+            )}
             <Text style={styles.emptyTitle}>아직 담긴 맛집이 없어요</Text>
             <Text style={styles.emptySub}>곧 채워질 예정이에요!</Text>
           </View>
@@ -259,6 +272,7 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 2,
   },
+  headerIconWrap: { width: 64, height: 64, borderRadius: 20, backgroundColor: '#FFF0E9', alignItems: 'center', justifyContent: 'center' },
   headerEmoji: { fontSize: 44 },
   headerTitle: { fontSize: 20, fontWeight: '800', color: '#1a1a1a' },
   headerDesc: { fontSize: 13.5, color: '#888', textAlign: 'center', lineHeight: 19 },

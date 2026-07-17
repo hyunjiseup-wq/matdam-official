@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import BrandIcon from '@/components/BrandIcon';
 import React, { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { notify } from '@/lib/confirm';
@@ -63,7 +64,10 @@ export default function ReportModal({ visible, onClose, targetType, targetId, ta
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
           <View style={styles.header}>
-            <Text style={styles.title}>🚩 신고하기</Text>
+            <View style={styles.titleRow}>
+              <BrandIcon name="flag" size={15} color="#FF7A45" />
+              <Text style={styles.title}>신고하기</Text>
+            </View>
             <Pressable onPress={() => { reset(); onClose(); }} hitSlop={8}>
               <Ionicons name="close" size={22} color="#888" />
             </Pressable>
@@ -121,6 +125,7 @@ const styles = StyleSheet.create({
   },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
   title: { fontSize: 17, fontWeight: '800', color: '#1a1a1a' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   target: { fontSize: 12, color: '#999', marginBottom: 6 },
   reasonRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 7 },
   reasonText: { fontSize: 14, color: '#555' },

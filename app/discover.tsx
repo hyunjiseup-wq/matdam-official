@@ -17,15 +17,16 @@ import ChipRow from '@/components/ChipRow';
 import SearchBar from '@/components/SearchBar';
 import { CATEGORIES, PROVINCES, inferDistrictFromAddress, inferProvinceFromAddress } from '@/constants/filters';
 import { notify } from '@/lib/confirm';
+import BrandIcon, { BrandIconName } from '@/components/BrandIcon';
 import { getCurrentPosition } from '@/lib/geo';
 import { useRestaurants } from '@/context/RestaurantContext';
 import { DiscoverItem, DiscoverSort, OwnerRef, Profile } from '@/types/restaurant';
 
-const SORTS: { key: DiscoverSort; label: string }[] = [
-  { key: 'popular', label: '🔥 인기순' },
-  { key: 'rating', label: '⭐ 별점순' },
-  { key: 'visited', label: '👣 방문순' },
-  { key: 'nearby', label: '📍 가까운순' },
+const SORTS: { key: DiscoverSort; label: string; icon: BrandIconName }[] = [
+  { key: 'popular', label: '인기순', icon: 'fire' },
+  { key: 'rating', label: '별점순', icon: 'star' },
+  { key: 'visited', label: '방문순', icon: 'steps' },
+  { key: 'nearby', label: '가까운순', icon: 'pin' },
 ];
 
 // 두 좌표 사이 거리 (km, 하버사인)
@@ -74,7 +75,10 @@ function OwnerAvatars({ owners, onPress }: { owners: OwnerRef[]; onPress: (id: s
   if (owners.length === 0) return null;
   return (
     <View style={styles.ownerSection}>
-      <Text style={styles.ownerHeading}>👑 이 맛집을 담은 인기 유저 TOP{owners.length}</Text>
+      <View style={styles.ownerHeadingRow}>
+        <BrandIcon name="crown" size={13} color="#F5A623" />
+        <Text style={styles.ownerHeading}>이 맛집을 담은 인기 유저 TOP{owners.length}</Text>
+      </View>
       <View style={styles.ownerList}>
         {owners.map((o) => (
           <Pressable
@@ -88,7 +92,12 @@ function OwnerAvatars({ owners, onPress }: { owners: OwnerRef[]; onPress: (id: s
           >
             <Avatar uri={o.avatar_url} name={o.display_name} size={40} admin={o.is_admin} style={{ marginBottom: 3 }} />
             <Text style={styles.ownerName} numberOfLines={1}>{o.display_name}</Text>
-            {o.like_count > 0 && <Text style={styles.ownerLike}>❤️ {o.like_count}</Text>}
+            {o.like_count > 0 && (
+              <View style={styles.ownerLikeRow}>
+                <BrandIcon name="heart" size={9} color="#FF7A45" />
+                <Text style={styles.ownerLike}>{o.like_count}</Text>
+              </View>
+            )}
           </Pressable>
         ))}
         <View style={styles.ownerArrow}>
@@ -112,7 +121,7 @@ function DiscoverCard({
   onSave: () => void;
   saved: boolean;
 }) {
-  const sub = [item.area, item.category, item.price_range ? `💰 ${item.price_range}` : ''].filter(Boolean).join(' · ');
+  const sub = [item.area, item.category, item.price_range].filter(Boolean).join(' · ');
   return (
     <Pressable onPress={onOpen} style={({ pressed }) => [styles.card, pressed && { opacity: 0.96 }]}>
       {/* 대표 사진 */}
@@ -157,7 +166,8 @@ function DiscoverCard({
             <Text style={styles.metaMuted}>리뷰 없음</Text>
           )}
           <View style={styles.addedPill}>
-            <Text style={styles.addedPillText}>👥 {item.addedCount}명이 담음</Text>
+            <BrandIcon name="people" size={11} color="#FF7A45" />
+            <Text style={styles.addedPillText}>{item.addedCount}명이 담음</Text>
           </View>
         </View>
 
@@ -315,7 +325,10 @@ export default function DiscoverScreen() {
 
             {userMatches.length > 0 && (
               <View style={styles.userSection}>
-                <Text style={styles.sectionLabel}>👤 사용자</Text>
+                <View style={styles.sectionLabelRow}>
+                  <BrandIcon name="person" size={12} color="#888" />
+                  <Text style={styles.sectionLabel}>사용자</Text>
+                </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.userScroll}>
                   {userMatches.map((u) => (
                     <Pressable key={u.id} style={styles.userChip} onPress={() => router.push(`/user/${u.id}` as any)}>
@@ -397,6 +410,7 @@ export default function DiscoverScreen() {
                   onPress={() => (s.key === 'nearby' ? handleNearby() : setSort(s.key))}
                   style={[styles.sortChip, sort === s.key && styles.sortChipActive]}
                 >
+                  <BrandIcon name={s.icon} size={12} color={sort === s.key ? '#fff' : '#8a7de0'} />
                   <Text style={[styles.sortText, sort === s.key && styles.sortTextActive]}>{s.label}</Text>
                 </Pressable>
               ))}
@@ -404,7 +418,10 @@ export default function DiscoverScreen() {
 
             {/* 지도로 보기 */}
             <Pressable style={styles.mapBanner} onPress={() => router.push('/map' as any)}>
-              <Text style={styles.mapBannerText}>🗺️ 지도에서 모아보기</Text>
+              <View style={styles.mapBannerLeft}>
+                <BrandIcon name="map" size={14} color="#0984E3" />
+                <Text style={styles.mapBannerText}>지도에서 모아보기</Text>
+              </View>
               <Ionicons name="chevron-forward" size={16} color="#0984E3" />
             </Pressable>
           </>
@@ -427,6 +444,7 @@ const styles = StyleSheet.create({
   list: { paddingBottom: 96 },
   userSection: { marginTop: 4 },
   sectionLabel: { fontSize: 13, fontWeight: '700', color: '#888', paddingHorizontal: 16, marginBottom: 6 },
+  sectionLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 },
   userScroll: { paddingHorizontal: 16, gap: 10, flexDirection: 'row' },
   userChip: { alignItems: 'center', width: 60 },
   userAvatar: {
@@ -462,10 +480,14 @@ const styles = StyleSheet.create({
   },
   mapBannerText: { fontSize: 14, fontWeight: '700', color: '#0984E3' },
   sortChip: {
-    flex: 1, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: '#ddd',
+    flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 4,
+    paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: '#ddd',
     backgroundColor: '#fff', alignItems: 'center',
   },
   sortChipActive: { backgroundColor: '#6C5CE7', borderColor: '#6C5CE7' },
+  ownerHeadingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 },
+  ownerLikeRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 1 },
+  mapBannerLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sortText: { fontSize: 13, color: '#555', fontWeight: '600' },
   sortTextActive: { color: '#fff' },
 
@@ -493,12 +515,12 @@ const styles = StyleSheet.create({
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { fontSize: 12, color: '#888' },
   metaMuted: { fontSize: 12, color: '#bbb' },
-  addedPill: { backgroundColor: '#FFF0E8', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  addedPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFF0E8', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   addedPillText: { fontSize: 12, color: '#FF7A45', fontWeight: '700' },
 
   // 담은 유저 TOP3
   ownerSection: { marginTop: 12, borderTopWidth: 1, borderTopColor: '#f5f5f5', paddingTop: 10 },
-  ownerHeading: { fontSize: 12, color: '#888', fontWeight: '600', marginBottom: 8 },
+  ownerHeading: { fontSize: 12, color: '#888', fontWeight: '600' },
   ownerList: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
   ownerItem: { alignItems: 'center', width: 56 },
   ownerAvatar: {
@@ -507,7 +529,7 @@ const styles = StyleSheet.create({
   },
   ownerAvatarText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   ownerName: { fontSize: 11, color: '#555', maxWidth: 56 },
-  ownerLike: { fontSize: 10, color: '#aaa', marginTop: 1 },
+  ownerLike: { fontSize: 10, color: '#aaa' },
   ownerArrow: { flex: 1, alignItems: 'flex-end', justifyContent: 'center', alignSelf: 'center' },
 
   emptyBox: { alignItems: 'center', paddingTop: 60 },

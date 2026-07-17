@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BrandIcon from '@/components/BrandIcon';
 import ReportModal from '@/components/ReportModal';
 import { CATEGORY_BG, CATEGORY_COLORS } from '@/constants/filters';
 import { confirmAction, notify } from '@/lib/confirm';
@@ -206,12 +207,14 @@ export default function DetailScreen() {
             )}
             {area && (
               <View style={styles.areaBadge}>
-                <Text style={styles.areaBadgeText}>📍 {area}</Text>
+                <BrandIcon name="pin" size={10} color="#666" />
+                <Text style={styles.areaBadgeText}>{area}</Text>
               </View>
             )}
             {price_range && (
               <View style={[styles.areaBadge, { backgroundColor: '#E8FFF9' }]}>
-                <Text style={[styles.areaBadgeText, { color: '#00B894', fontWeight: '600' }]}>💰 {price_range}</Text>
+                <BrandIcon name="price" size={10} color="#00B894" />
+                <Text style={[styles.areaBadgeText, { color: '#00B894', fontWeight: '600' }]}>{price_range}</Text>
               </View>
             )}
             {map_source && (
@@ -232,7 +235,7 @@ export default function DetailScreen() {
             <Stars count={priority} />
             <Text style={styles.priorityText}>우선순위 {priority}/5</Text>
             {avgRating !== null && (
-              <Text style={styles.reviewRatingText}>· 리뷰 ★{avgRating}.0 ({reviews.length})</Text>
+              <Text style={styles.reviewRatingText}>· 리뷰 {avgRating}.0점 ({reviews.length})</Text>
             )}
           </View>
 
@@ -247,7 +250,7 @@ export default function DetailScreen() {
               >
                 <Ionicons name={wishlist ? 'heart' : 'heart-outline'} size={18} color={wishlist ? '#fff' : '#aaa'} />
                 <Text style={[styles.stateToggleText, wishlist && styles.stateToggleTextActive]}>
-                  {wishlist ? '가고싶음 ✓' : '가고싶음'}
+                  {'가고싶음'}
                 </Text>
               </Pressable>
               <Pressable
@@ -285,11 +288,11 @@ export default function DetailScreen() {
                 }
                 hitSlop={6}
               >
-                <Text style={styles.modText}>🚩 신고</Text>
+                <View style={styles.modItem}><BrandIcon name="flag" size={11} color="#aaa" /><Text style={styles.modText}>신고</Text></View>
               </Pressable>
               <Text style={styles.modDivider}>·</Text>
               <Pressable onPress={() => handleBlockUser(restaurant.owner_id, '이 작성자', true)} hitSlop={6}>
-                <Text style={styles.modText}>🚫 작성자 차단</Text>
+                <View style={styles.modItem}><BrandIcon name="block" size={11} color="#aaa" /><Text style={styles.modText}>작성자 차단</Text></View>
               </Pressable>
             </View>
           ) : null}
@@ -300,7 +303,7 @@ export default function DetailScreen() {
           <View style={styles.infoCard}>
             {address && (
               <Pressable onPress={handleOpenMap} style={styles.infoRow}>
-                <Text style={styles.infoIcon}>🗺️</Text>
+                <View style={styles.infoIconWrap}><BrandIcon name="map" size={15} color="#FF7A45" /></View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>주소 (탭하면 지도 열기)</Text>
                   <Text style={[styles.infoValue, styles.addressLink]}>{address}</Text>
@@ -310,7 +313,7 @@ export default function DetailScreen() {
             )}
             {memo && (
               <View style={styles.infoRow}>
-                <Text style={styles.infoIcon}>📝</Text>
+                <View style={styles.infoIconWrap}><BrandIcon name="clipboard" size={15} color="#FF7A45" /></View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>메모</Text>
                   <Text style={styles.infoValue}>{memo}</Text>
@@ -337,14 +340,14 @@ export default function DetailScreen() {
         {/* 메뉴 (네이버에서 자동 추출) */}
         {menus && menus.length > 0 && (
           <View style={styles.infoCard}>
-            <Text style={styles.sectionTitle}>🍽️ 메뉴 ({menus.length})</Text>
+            <Text style={styles.sectionTitle}>메뉴 ({menus.length})</Text>
             {(showAllMenus ? menus : menus.slice(0, 6)).map((menu, i) => (
               <View key={i} style={styles.menuRow}>
                 {menu.image ? (
                   <Image source={{ uri: menu.image }} style={styles.menuImage} />
                 ) : (
                   <View style={[styles.menuImage, styles.menuImagePlaceholder]}>
-                    <Text style={{ fontSize: 16 }}>🍴</Text>
+                    <BrandIcon name="bowl" size={16} color="#FFB694" />
                   </View>
                 )}
                 <Text style={styles.menuName} numberOfLines={2}>
@@ -502,7 +505,7 @@ const styles = StyleSheet.create({
   badges: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   badgeText: { fontSize: 13, fontWeight: '700' },
-  areaBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, backgroundColor: '#f0f0f0' },
+  areaBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, backgroundColor: '#f0f0f0' },
   areaBadgeText: { fontSize: 13, color: '#666' },
   othersBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, backgroundColor: '#F0EEFF' },
   othersBadgeText: { fontSize: 13, color: '#6C5CE7', fontWeight: '600' },
@@ -542,6 +545,7 @@ const styles = StyleSheet.create({
   copyBtnTextDone: { color: '#00B894' },
   modRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 2 },
   modText: { fontSize: 12, color: '#aaa' },
+  modItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   modDivider: { fontSize: 12, color: '#ddd' },
 
   infoCard: {
@@ -556,7 +560,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   infoRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
-  infoIcon: { fontSize: 18, marginTop: 1 },
+  infoIconWrap: { width: 28, height: 28, borderRadius: 9, backgroundColor: '#FFF0E9', alignItems: 'center', justifyContent: 'center' },
   infoContent: { flex: 1 },
   infoLabel: { fontSize: 12, color: '#aaa', marginBottom: 2 },
   infoValue: { fontSize: 15, color: '#333', lineHeight: 22 },

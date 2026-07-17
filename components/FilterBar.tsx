@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import BrandIcon, { BrandIconName } from '@/components/BrandIcon';
 import ChipRow from '@/components/ChipRow';
 import {
   CATEGORIES,
@@ -28,10 +29,10 @@ function Chip({ label, active, onPress, activeColor = '#FF7A45' }: ChipProps) {
   );
 }
 
-const STATUS_OPTIONS: { label: string; value: VisitedFilter; color: string }[] = [
+const STATUS_OPTIONS: { label: string; value: VisitedFilter; color: string; icon?: BrandIconName }[] = [
   { label: '전체', value: 'all', color: '#888' },
-  { label: '❤️ 가고싶음', value: 'wishlist', color: '#FF7A45' },
-  { label: '✓ 방문함', value: 'visited', color: '#00B894' },
+  { label: '가고싶음', value: 'wishlist', color: '#FF7A45', icon: 'heart' },
+  { label: '방문함', value: 'visited', color: '#00B894', icon: 'check' },
 ];
 
 export default function FilterBar() {
@@ -144,6 +145,13 @@ export default function FilterBar() {
               visitedFilter === opt.value && { backgroundColor: opt.color, borderColor: opt.color },
             ]}
           >
+            {opt.icon && (
+              <BrandIcon
+                name={opt.icon}
+                size={12}
+                color={visitedFilter === opt.value ? '#fff' : opt.color}
+              />
+            )}
             <Text style={[styles.visitedText, visitedFilter === opt.value && styles.visitedTextActive]}>
               {opt.label}
             </Text>
@@ -176,6 +184,9 @@ const styles = StyleSheet.create({
   visitedRow: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 6, gap: 8 },
   visitedChip: {
     flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 5,
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,

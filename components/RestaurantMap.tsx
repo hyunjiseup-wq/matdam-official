@@ -1,6 +1,7 @@
 // 웹 지도: Leaflet + OpenStreetMap (무료, API 키 불필요)
 // 네이티브는 RestaurantMap.native.tsx (react-native-maps)가 대신 로드된다.
 import { useRouter } from 'expo-router';
+import BrandIcon from '@/components/BrandIcon';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { CATEGORY_COLORS } from '@/constants/filters';
@@ -91,11 +92,11 @@ export default function RestaurantMap() {
               ? `<img src="${it.image_url}" style="width:100%;height:80px;object-fit:cover;border-radius:8px;margin-bottom:6px;" />`
               : '') +
             `<div style="font-weight:700;font-size:14px;margin-bottom:2px;">${it.name}</div>` +
-            `<div style="font-size:12px;color:#888;">${[it.category, it.area, it.price_range ? '💰 ' + it.price_range : '']
+            `<div style="font-size:12px;color:#888;">${[it.category, it.area, it.price_range]
               .filter(Boolean)
               .join(' · ')}</div>` +
-            `<div style="font-size:12px;color:#FF7A45;margin:3px 0 6px;">🔥 ${it.addedCount}명 담음${
-              it.avgRating > 0 ? ' · ★ ' + it.avgRating.toFixed(1) : ''
+            `<div style="font-size:12px;color:#FF7A45;margin:3px 0 6px;"><svg width="11" height="11" viewBox="0 0 24 24" style="vertical-align:-1px"><path fill="#FF7A45" d="M12 2.8c.6 3.2-1.4 4.9-2.6 6.4a6.2 6.2 0 0 0-1.6 4.2A6.3 6.3 0 0 0 14 19.4c2.4-.9 4.2-3.2 4.2-6 0-2.6-1.5-4.2-2.6-5.7-.4 1-.9 1.9-1.9 2.5.2-2.3-.2-5.3-1.7-7.4z"/></svg> ${it.addedCount}명 담음${
+              it.avgRating > 0 ? ' · <svg width="11" height="11" viewBox="0 0 24 24" style="vertical-align:-1px"><path fill="#F5A623" d="M12 3.4l2.5 5.1 5.6.8-4 4 .9 5.6-5-2.7-5 2.7.9-5.6-4-4 5.6-.8z"/></svg> ' + it.avgRating.toFixed(1) : ''
             }</div>`;
           const btn = document.createElement('button');
           btn.textContent = '상세 보기 →';
@@ -122,7 +123,7 @@ export default function RestaurantMap() {
                 fillOpacity: 1,
               })
                 .addTo(mapRef.current)
-                .bindPopup('📍 내 위치');
+                .bindPopup('내 위치');
             },
             () => {},
             { timeout: 5000 },
@@ -154,8 +155,9 @@ export default function RestaurantMap() {
       )}
       {!loading && (
         <View style={styles.countBadge}>
+          <BrandIcon name="bowl" size={13} color="#FF7A45" />
           <Text style={styles.countText}>
-            🍽️ {shown}곳 표시{missing > 0 ? ` (좌표 없는 ${missing}곳 제외)` : ''}
+            {shown}곳 표시{missing > 0 ? ` (좌표 없는 ${missing}곳 제외)` : ''}
           </Text>
         </View>
       )}
@@ -176,7 +178,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(245,245,245,0.7)',
   },
-  countBadge: {
+  countBadge: { flexDirection: 'row', alignItems: 'center', gap: 5,
     position: 'absolute',
     bottom: 14,
     alignSelf: 'center',

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import BrandIcon from '@/components/BrandIcon';
 import { CATEGORY_BG, CATEGORY_COLORS } from '@/constants/filters';
 import { Restaurant } from '@/types/restaurant';
 
@@ -59,12 +60,14 @@ export default function RestaurantCard({
               )}
               {area && (
                 <View style={styles.areaBadge}>
-                  <Text style={styles.areaBadgeText}>📍 {area}</Text>
+                  <BrandIcon name="pin" size={10} color="#888" />
+                  <Text style={styles.areaBadgeText}>{area}</Text>
                 </View>
               )}
               {price_range && (
                 <View style={styles.priceBadge}>
-                  <Text style={styles.priceBadgeText}>💰 {price_range}</Text>
+                  <BrandIcon name="price" size={10} color="#00B894" />
+                  <Text style={styles.priceBadgeText}>{price_range}</Text>
                 </View>
               )}
               {map_source && (
@@ -205,9 +208,9 @@ const styles = StyleSheet.create({
   badges: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', flex: 1 },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   badgeText: { fontSize: 12, fontWeight: '600' },
-  areaBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: '#f0f0f0' },
+  areaBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: '#f0f0f0' },
   areaBadgeText: { fontSize: 12, color: '#666' },
-  priceBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: '#E8FFF9' },
+  priceBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: '#E8FFF9' },
   priceBadgeText: { fontSize: 12, color: '#00B894', fontWeight: '600' },
   mapBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   mapBadgeText: { fontSize: 12, fontWeight: '800' },

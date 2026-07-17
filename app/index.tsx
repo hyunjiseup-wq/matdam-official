@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BrandIcon from '@/components/BrandIcon';
 import FilterBar from '@/components/FilterBar';
 import RestaurantCard from '@/components/RestaurantCard';
 import SearchBar from '@/components/SearchBar';
@@ -145,7 +146,7 @@ export default function HomeScreen() {
               <View style={styles.exploreLeft}>
                 <Ionicons name="restaurant" size={22} color="#fff" />
                 <View>
-                  <Text style={styles.exploreTitle}>전체 맛집 둘러보기 🔥</Text>
+                  <Text style={styles.exploreTitle}>전체 맛집 둘러보기</Text>
                   <Text style={styles.discoverSub}>인기순·별점순·방문순으로 한눈에</Text>
                 </View>
               </View>
@@ -168,7 +169,10 @@ export default function HomeScreen() {
             {region && recs.length > 0 && (
               <View style={styles.recSection}>
                 <View style={styles.recHead}>
-                  <Text style={styles.recTitle}>📍 {region} 추천 맛집</Text>
+                  <View style={styles.recTitleRow}>
+                    <BrandIcon name="pin" size={13} color="#FF7A45" />
+                    <Text style={styles.recTitle}>{region} 추천 맛집</Text>
+                  </View>
                   <Pressable onPress={() => router.push('/profile' as any)} hitSlop={6}>
                     <Text style={styles.recEdit}>지역 변경</Text>
                   </Pressable>
@@ -184,7 +188,7 @@ export default function HomeScreen() {
                         <Image source={{ uri: it.image_url }} style={styles.recImg} />
                       ) : (
                         <View style={[styles.recImg, styles.recImgEmpty]}>
-                          <Text style={{ fontSize: 26 }}>🍽️</Text>
+                          <BrandIcon name="bowl" size={24} color="#FFB694" />
                         </View>
                       )}
                       <View style={styles.recBody}>
@@ -192,9 +196,16 @@ export default function HomeScreen() {
                         <Text style={styles.recMeta} numberOfLines={1}>
                           {it.category || '음식점'}{it.area ? ` · ${it.area}` : ''}
                         </Text>
-                        <Text style={styles.recStat}>
-                          🔥 {it.addedCount}명 담음{it.avgRating > 0 ? `  ★ ${it.avgRating.toFixed(1)}` : ''}
-                        </Text>
+                        <View style={styles.recStatRow}>
+                          <BrandIcon name="fire" size={11} color="#FF7A45" />
+                          <Text style={styles.recStat}>{it.addedCount}명 담음</Text>
+                          {it.avgRating > 0 && (
+                            <>
+                              <BrandIcon name="star" size={11} color="#F5A623" />
+                              <Text style={styles.recStat}>{it.avgRating.toFixed(1)}</Text>
+                            </>
+                          )}
+                        </View>
                       </View>
                     </Pressable>
                   ))}
@@ -227,7 +238,9 @@ export default function HomeScreen() {
         ListEmptyComponent={
           isEmpty ? (
             <View style={styles.emptyBox}>
-              <Text style={styles.emptyEmoji}>🍽️</Text>
+              <View style={styles.emptyIconWrap}>
+                <BrandIcon name="bowl" size={34} color="#FF7A45" />
+              </View>
               <Text style={styles.emptyTitle}>아직 담은 맛집이 없어요</Text>
               <Text style={styles.emptySub}>
                 위 "둘러보기"에서 다른 사람 리스트를 구경하거나{'\n'}아래 + 버튼으로 직접 추가해보세요
@@ -257,7 +270,7 @@ export default function HomeScreen() {
         style={({ pressed }) => [styles.collectionsFab, pressed && { opacity: 0.85 }]}
         onPress={() => router.push('/collections' as any)}
       >
-        <Text style={styles.collectionsFabEmoji}>🧭</Text>
+        <BrandIcon name="compass" size={18} color="#6C5CE7" />
         <Text style={styles.collectionsFabText}>테마{'\n'}컬렉션</Text>
         <Ionicons name="chevron-forward" size={14} color="#6C5CE7" />
       </Pressable>
@@ -320,7 +333,9 @@ const styles = StyleSheet.create({
   recBody: { padding: 10, gap: 2 },
   recName: { fontSize: 13, fontWeight: '700', color: '#222' },
   recMeta: { fontSize: 11, color: '#999' },
-  recStat: { fontSize: 11, color: '#FF7A45', fontWeight: '600', marginTop: 2 },
+  recStatRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
+  recStat: { fontSize: 11, color: '#FF7A45', fontWeight: '600' },
+  recTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   collectionsFab: {
     position: 'absolute',
     right: 0,
@@ -341,7 +356,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
   },
-  collectionsFabEmoji: { fontSize: 18 },
+
   collectionsFabText: {
     fontSize: 10.5,
     color: '#6C5CE7',
@@ -366,7 +381,7 @@ const styles = StyleSheet.create({
   regionHintText: { flex: 1, fontSize: 12, color: '#B8734F' },
   countText: { fontSize: 12, color: '#aaa' },
   emptyBox: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 32, gap: 8 },
-  emptyEmoji: { fontSize: 56 },
+  emptyIconWrap: { width: 76, height: 76, borderRadius: 26, backgroundColor: '#FFF0E9', alignItems: 'center', justifyContent: 'center' },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: '#444' },
   emptySub: { fontSize: 14, color: '#aaa', textAlign: 'center', lineHeight: 20 },
   emptyBtn: {

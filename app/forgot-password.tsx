@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BrandIcon from '@/components/BrandIcon';
 import { useAuth } from '@/context/AuthContext';
 import { notify } from '@/lib/confirm';
 
@@ -35,7 +36,9 @@ export default function ForgotPasswordScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.content}>
-        <Text style={styles.emoji}>🔑</Text>
+        <View style={styles.heroIconWrap}>
+          <BrandIcon name="key" size={34} color="#FF7A45" />
+        </View>
         <Text style={styles.title}>비밀번호 찾기</Text>
         <Text style={styles.sub}>
           마이 탭에서 등록한 이메일 주소를 입력하면{'\n'}재설정 링크를 보내드려요.
@@ -45,7 +48,7 @@ export default function ForgotPasswordScreen() {
           <View style={styles.doneBox}>
             <Text style={styles.doneText}>
               등록된 이메일이라면 재설정 링크를 보냈어요.{'\n'}
-              메일함(스팸함 포함)을 확인해주세요. 📮
+              메일함(스팸함 포함)을 확인해주세요.
             </Text>
             <Pressable style={styles.btn} onPress={() => router.back()}>
               <Text style={styles.btnText}>로그인으로 돌아가기</Text>
@@ -87,7 +90,7 @@ export default function ForgotPasswordScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#fff' },
   content: { padding: 24, paddingTop: 60, alignItems: 'center' },
-  emoji: { fontSize: 48 },
+  heroIconWrap: { width: 72, height: 72, borderRadius: 24, backgroundColor: '#FFF0E9', alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: '800', color: '#1a1a1a', marginTop: 10 },
   sub: { fontSize: 14, color: '#999', marginTop: 8, textAlign: 'center', lineHeight: 21, marginBottom: 28 },
   input: {

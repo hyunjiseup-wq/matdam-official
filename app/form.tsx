@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BrandIcon from '@/components/BrandIcon';
 import ChipRow from '@/components/ChipRow';
 import { AREAS, CATEGORIES, PRICE_RANGES, inferAreaFromAddress } from '@/constants/filters';
 import { notify } from '@/lib/confirm';
@@ -192,9 +193,9 @@ export default function FormScreen() {
         lng: d.lng ?? prev.lng,
       }));
       const menuNote =
-        d.menus && d.menus.length > 0 ? `\n메뉴 ${d.menus.length}개도 함께 저장돼요. 🍽️` : '';
+        d.menus && d.menus.length > 0 ? `\n메뉴 ${d.menus.length}개도 함께 저장돼요.` : '';
       notify(
-        d.ai ? '자동 인식 완료 ✨' : '기본 정보만 채웠어요',
+        d.ai ? '자동 인식 완료' : '기본 정보만 채웠어요',
         (d.ai
           ? '내용을 확인하고 필요하면 수정해주세요.'
           : '이름·사진 위주로 채웠어요. 주소·카테고리는 확인해주세요.') + menuNote
@@ -485,7 +486,10 @@ export default function FormScreen() {
           {/* 가고싶음 */}
           <View style={styles.switchRow}>
             <View>
-              <Text style={styles.switchLabel}>❤️ 가고싶음</Text>
+              <View style={styles.switchLabelRow}>
+                <BrandIcon name="heart" size={13} color="#FF7A45" />
+                <Text style={styles.switchLabel}>가고싶음</Text>
+              </View>
               <Text style={styles.switchSub}>내 위시리스트에 추가</Text>
             </View>
             <Switch
@@ -499,7 +503,10 @@ export default function FormScreen() {
           {/* 방문 여부 */}
           <View style={styles.switchRow}>
             <View>
-              <Text style={styles.switchLabel}>✓ 방문 완료</Text>
+              <View style={styles.switchLabelRow}>
+                <BrandIcon name="check" size={13} color="#00B894" />
+                <Text style={styles.switchLabel}>방문 완료</Text>
+              </View>
               <Text style={styles.switchSub}>이미 다녀온 곳</Text>
             </View>
             <Switch
@@ -586,6 +593,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   switchLabel: { fontSize: 15, color: '#333', fontWeight: '600' },
+  switchLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   switchSub: { fontSize: 12, color: '#aaa', marginTop: 2 },
   saveBtn: {
     flexDirection: 'row',

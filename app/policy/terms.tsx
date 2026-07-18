@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const UPDATED = '2026년 7월 5일';
-const CONTACT = 'hyunjiseup@gmail.com';
+const CONTACT = 'matdamkr@naver.com';
 
 function H({ children }: { children: React.ReactNode }) {
   return <Text style={styles.h}>{children}</Text>;

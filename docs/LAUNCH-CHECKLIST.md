@@ -32,7 +32,7 @@
 - [ ] D1. Google Play Console 계정 + Data safety form
 - [ ] D2. Apple Developer 계정 + App Store Connect 메타데이터
 - [ ] D3. 스크린샷 세트 (iPhone/Android 주요 해상도)
-- [ ] D4. 심사용 데모 계정
+- [x] D4. 심사용 데모 계정 — 아이디 `matdamdemo` 생성 완료 (2026-07-18). 담은 맛집 6곳(골목 노포)·방문 2곳·리뷰 2건 채움, 비밀번호 로그인 실검증. **비밀번호는 레포에 없음** → `docs/DEMO-ACCOUNT.local.md`(gitignore, 로컬 전용)에 심사 노트 문구와 함께 기록. 스토어 제출(D1·D2) 시 심사 노트에 입력. ⚠️ 심사관이 계정 삭제 테스트 시 같은 아이디로 재가입해 복구
 - [ ] D5. Play 비공개 테스트 (12명 × 14일) 운영
 - [ ] D6. TestFlight 베타
 

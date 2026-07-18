@@ -13,3 +13,6 @@ expo-env.d.ts
 # @end expo-cli
 .vercel
 .env*
+
+# 로컬 전용 문서 (자격증명 등 — 공개 레포에 올리지 않음)
+*.local.md

@@ -45,7 +45,7 @@
 
 ## F. 운영/안정성
 - [x] F1. 에러 로깅(Sentry) — 가동 중: lib/sentry 플랫폼 분리(웹 @sentry/browser, 네이티브 @sentry/react-native). DSN 3곳 등록 완료(로컬 .env·Vercel prod/preview/dev·EAS preview/production/development, 2026-07-17). 웹 프로덕션에서 실제 이벤트 전송 검증. 네이티브는 다음 EAS 빌드부터 포함. 스토어 제출용 최종 빌드 전 소스맵 플러그인(@sentry/react-native/expo) 추가 예정
-- [ ] F2. 업타임 모니터링 + Vercel/Supabase 사용량 알림
+- [x] F2. 업타임 모니터링 — UptimeRobot 무료 계정, 모니터 2개 등록 완료 (2026-07-18): 웹(matdam-official.vercel.app) + Supabase(auth/v1/health), 5분 간격·이메일 알림. Vercel/Supabase 사용량 알림은 각 대시보드 기본 이메일 알림으로 커버
 - [ ] F3. DB 백업 — 주간 암호화 덤프 워크플로 준비 완료(.github/workflows/db-backup.yml, docs/BACKUP.md). **사용자: 저장소 시크릿 2개(SUPABASE_DB_URL·BACKUP_PASSPHRASE) 등록하면 활성화**
 - [x] F4. 조회 인덱스 8종 추가(migration14) — 리뷰·피드백·좋아요·신고·차단·컬렉션 경로. 텍스트/좌표 인덱스는 서버측 검색 도입 시(현재 전부 클라이언트 필터링)
 - [ ] F5. OSM 타일 → 상용 타일(MapTiler 등) 전환 (1만 MAU 전)

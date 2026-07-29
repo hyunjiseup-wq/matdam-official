@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,11 +17,19 @@ import BrandIcon from '@/components/BrandIcon';
 import { notify } from '@/lib/confirm';
 import { useRestaurants } from '@/context/RestaurantContext';
 
-function StarPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function StarPicker({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled?: boolean }) {
   return (
     <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
       {[1, 2, 3, 4, 5].map((n) => (
-        <Pressable key={n} onPress={() => onChange(n)} hitSlop={6}>
+        <Pressable
+          key={n}
+          onPress={() => onChange(n)}
+          disabled={disabled}
+          accessibilityRole="button"
+          accessibilityLabel={`${n}점`}
+          accessibilityState={{ selected: n === value, disabled }}
+          hitSlop={6}
+        >
           <Ionicons
             name={n <= value ? 'star' : 'star-outline'}
             size={36}
@@ -35,18 +44,14 @@ function StarPicker({ value, onChange }: { value: number; onChange: (v: number) 
 export default function ReviewScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { getRestaurant, getReviews, saveReview } = useRestaurants();
+  const { getRestaurant, saveReview } = useRestaurants();
   const restaurant = getRestaurant(id);
   const [rating, setRating] = useState(4);
   const [content, setContent] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    // 기존 리뷰 있으면 불러오기 (나의 리뷰)
-    // getReviews는 전체 리뷰이므로 별도로 내 리뷰만 가져오지 않고, 간단히 기본값 사용
-  }, []);
-
   async function handleSave() {
+    if (saving) return;
     if (rating === 0) {
       notify('별점을 선택해주세요');
       return;
@@ -83,7 +88,7 @@ export default function ReviewScreen() {
           )}
 
           <Text style={styles.sectionLabel}>별점</Text>
-          <StarPicker value={rating} onChange={setRating} />
+          <StarPicker value={rating} onChange={setRating} disabled={saving} />
 
           <Text style={[styles.sectionLabel, { marginTop: 20 }]}>리뷰 내용 (선택)</Text>
           <TextInput
@@ -95,14 +100,21 @@ export default function ReviewScreen() {
             multiline
             numberOfLines={5}
             textAlignVertical="top"
+            editable={!saving}
+            maxLength={1000}
           />
+          <Text style={styles.counter}>{content.length}/1000</Text>
 
           <Pressable
             onPress={handleSave}
             disabled={saving}
             style={({ pressed }) => [styles.btn, pressed && { opacity: 0.85 }, saving && { opacity: 0.6 }]}
           >
-            <Ionicons name="checkmark-circle" size={20} color="#fff" />
+            {saving ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons name="checkmark-circle" size={20} color="#fff" />
+            )}
             <Text style={styles.btnText}>{saving ? '저장 중...' : '리뷰 저장'}</Text>
           </Pressable>
         </ScrollView>
@@ -159,4 +171,5 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  counter: { color: '#aaa', fontSize: 12, textAlign: 'right' },
 });

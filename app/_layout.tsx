@@ -38,7 +38,7 @@ function RootNavigator() {
       const toLanding = Platform.OS === 'web' && seg === '';
       router.replace((toLanding ? '/welcome' : '/login') as any);
     } else if (user && (seg === 'login' || seg === 'welcome')) {
-      router.replace('/');
+      router.replace('/' as any);
     }
   }, [user, loading, segments]);
 

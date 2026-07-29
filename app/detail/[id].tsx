@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import * as Linking from 'expo-linking';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,6 +15,7 @@ import BrandIcon from '@/components/BrandIcon';
 import ReportModal from '@/components/ReportModal';
 import { CATEGORY_BG, CATEGORY_COLORS } from '@/constants/filters';
 import { confirmAction, notify } from '@/lib/confirm';
+import { openExternalLink } from '@/lib/externalLink';
 import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
 import { ReportTargetType, Restaurant, Review } from '@/types/restaurant';
@@ -61,7 +61,11 @@ export default function DetailScreen() {
   const [loadingR, setLoadingR] = useState(!local);
   const [deleting, setDeleting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [stateChanging, setStateChanging] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewsError, setReviewsError] = useState(false);
   const [showAllMenus, setShowAllMenus] = useState(false);
   const [reportTarget, setReportTarget] = useState<{
     type: ReportTargetType;
@@ -85,11 +89,19 @@ export default function DetailScreen() {
     })();
   }, [id, local, fetchRestaurantById]);
 
+  useEffect(() => {
+    setImageFailed(false);
+  }, [restaurant?.image_url]);
+
   const loadReviews = useCallback(async () => {
+    setReviewsLoading(true);
+    setReviewsError(false);
     try {
       setReviews(await getReviews(id));
     } catch {
-      // 무시
+      setReviewsError(true);
+    } finally {
+      setReviewsLoading(false);
     }
   }, [id, getReviews]);
 
@@ -124,9 +136,17 @@ export default function DetailScreen() {
 
   function handleDelete() {
     confirmAction('맛집 삭제', `"${name}"을(를) 내 리스트에서 삭제할까요?`, async () => {
+      if (deleting) return;
       setDeleting(true);
-      await deleteRestaurant(id);
-      router.back();
+      try {
+        await deleteRestaurant(id);
+        notify('삭제 완료', '내 리스트에서 삭제했어요.');
+        router.back();
+      } catch (e: any) {
+        notify('삭제 실패', e.message ?? '잠시 후 다시 시도해주세요.');
+      } finally {
+        setDeleting(false);
+      }
     }, '삭제', true);
   }
 
@@ -141,9 +161,22 @@ export default function DetailScreen() {
     }
   }
 
+  async function handleStateChange(kind: 'visited' | 'wishlist') {
+    if (stateChanging) return;
+    setStateChanging(true);
+    try {
+      if (kind === 'visited') await toggleVisited(id);
+      else await toggleWishlist(id);
+    } catch {
+      notify('저장 실패', '변경 내용을 저장하지 못했어요. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setStateChanging(false);
+    }
+  }
+
   function handleOpenMap() {
     if (naver_map_url) {
-      Linking.openURL(naver_map_url).catch(() => notify('오류', '지도를 열 수 없습니다.'));
+      openExternalLink(naver_map_url).catch(() => notify('오류', '지도를 열 수 없습니다.'));
       return;
     }
     if (address) {
@@ -151,7 +184,7 @@ export default function DetailScreen() {
       const url = isGoogle
         ? `https://www.google.com/maps/search/${encoded}`
         : `https://map.naver.com/v5/search/${encoded}`;
-      Linking.openURL(url).catch(() => notify('오류', '지도를 열 수 없습니다.'));
+      openExternalLink(url).catch(() => notify('오류', '지도를 열 수 없습니다.'));
     }
   }
 
@@ -195,7 +228,14 @@ export default function DetailScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
-        {image_url ? <Image source={{ uri: image_url }} style={styles.heroImage} /> : null}
+        {image_url && !imageFailed ? (
+          <Image
+            source={{ uri: image_url }}
+            style={styles.heroImage}
+            onError={() => setImageFailed(true)}
+            accessibilityLabel={`${name} 사진`}
+          />
+        ) : null}
 
         {/* 헤더 카드 */}
         <View style={styles.heroCard}>
@@ -242,11 +282,10 @@ export default function DetailScreen() {
           {isMine ? (
             <View style={styles.stateRow}>
               <Pressable
-                onPress={() => {
-                  toggleWishlist(id);
-                  setRestaurant((r) => (r ? { ...r, wishlist: !r.wishlist } : r));
-                }}
-                style={[styles.stateToggle, wishlist && styles.wishlistActive]}
+                onPress={() => handleStateChange('wishlist')}
+                disabled={stateChanging}
+                accessibilityState={{ busy: stateChanging }}
+                style={[styles.stateToggle, wishlist && styles.wishlistActive, stateChanging && styles.disabled]}
               >
                 <Ionicons name={wishlist ? 'heart' : 'heart-outline'} size={18} color={wishlist ? '#fff' : '#aaa'} />
                 <Text style={[styles.stateToggleText, wishlist && styles.stateToggleTextActive]}>
@@ -254,11 +293,10 @@ export default function DetailScreen() {
                 </Text>
               </Pressable>
               <Pressable
-                onPress={() => {
-                  toggleVisited(id);
-                  setRestaurant((r) => (r ? { ...r, visited: !r.visited } : r));
-                }}
-                style={[styles.stateToggle, visited && styles.visitedActive]}
+                onPress={() => handleStateChange('visited')}
+                disabled={stateChanging}
+                accessibilityState={{ busy: stateChanging }}
+                style={[styles.stateToggle, visited && styles.visitedActive, stateChanging && styles.disabled]}
               >
                 <Ionicons name={visited ? 'checkmark-circle' : 'ellipse-outline'} size={18} color={visited ? '#fff' : '#aaa'} />
                 <Text style={[styles.stateToggleText, visited && styles.stateToggleTextActive]}>
@@ -391,7 +429,17 @@ export default function DetailScreen() {
             </Pressable>
           </View>
 
-          {reviews.length === 0 ? (
+          {reviewsLoading ? (
+            <ActivityIndicator color="#FF7A45" style={styles.reviewLoading} />
+          ) : reviewsError ? (
+            <View style={styles.reviewErrorBox} accessibilityRole="alert">
+              <Text style={styles.reviewErrorText}>리뷰를 불러오지 못했어요.</Text>
+              <Pressable onPress={loadReviews} style={styles.reviewRetryBtn}>
+                <Ionicons name="refresh" size={15} color="#fff" />
+                <Text style={styles.reviewRetryText}>다시 시도</Text>
+              </Pressable>
+            </View>
+          ) : reviews.length === 0 ? (
             <Text style={styles.reviewEmpty}>아직 리뷰가 없어요. 첫 리뷰를 남겨보세요!</Text>
           ) : (
             reviews.map((review) => (
@@ -445,7 +493,7 @@ export default function DetailScreen() {
         {isMine && (
           <View style={styles.actionRow}>
             <Pressable
-              onPress={() => router.push({ pathname: '/form', params: { id } })}
+              onPress={() => router.push({ pathname: '/form', params: { id } } as any)}
               style={({ pressed }) => [styles.editBtn, pressed && { opacity: 0.85 }]}
             >
               <Ionicons name="create-outline" size={18} color="#6C5CE7" />
@@ -530,6 +578,7 @@ const styles = StyleSheet.create({
   visitedActive: { backgroundColor: '#00B894' },
   stateToggleText: { fontSize: 14, color: '#888', fontWeight: '500' },
   stateToggleTextActive: { color: '#fff' },
+  disabled: { opacity: 0.55 },
 
   copyBtn: {
     flexDirection: 'row',
@@ -605,6 +654,19 @@ const styles = StyleSheet.create({
   addReviewBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   addReviewText: { fontSize: 14, color: '#FF7A45', fontWeight: '600' },
   reviewEmpty: { fontSize: 14, color: '#bbb', textAlign: 'center', paddingVertical: 16 },
+  reviewLoading: { paddingVertical: 18 },
+  reviewErrorBox: { alignItems: 'center', gap: 10, paddingVertical: 14 },
+  reviewErrorText: { fontSize: 13, color: '#888' },
+  reviewRetryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#FF7A45',
+    borderRadius: 9,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  reviewRetryText: { color: '#fff', fontSize: 12, fontWeight: '700' },
 
   reviewCard: { backgroundColor: '#f8f8f8', borderRadius: 12, padding: 12, gap: 6 },
   reviewHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

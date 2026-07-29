@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import BrandIcon from '@/components/BrandIcon';
 import { CATEGORY_BG, CATEGORY_COLORS } from '@/constants/filters';
@@ -13,6 +13,7 @@ interface Props {
   onToggleWishlist?: () => void;
   onCopy?: () => void;
   copied?: boolean;
+  updating?: boolean;
 }
 
 function Stars({ count }: { count: number }) {
@@ -38,10 +39,16 @@ export default function RestaurantCard({
   onToggleWishlist,
   onCopy,
   copied,
+  updating = false,
 }: Props) {
   const { name, area, category, memo, tags, priority, visited, wishlist, image_url, map_source, price_range } = restaurant;
+  const [imageFailed, setImageFailed] = useState(false);
   const catColor = category ? CATEGORY_COLORS[category] ?? '#888' : '#888';
   const catBg = category ? CATEGORY_BG[category] ?? '#f5f5f5' : '#f5f5f5';
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [image_url]);
 
   return (
     <Pressable
@@ -113,7 +120,18 @@ export default function RestaurantCard({
         </View>
 
         {/* 음식 사진 썸네일 */}
-        {image_url ? <Image source={{ uri: image_url }} style={styles.thumbnail} /> : null}
+        {image_url && !imageFailed ? (
+          <Image
+            source={{ uri: image_url }}
+            style={styles.thumbnail}
+            onError={() => setImageFailed(true)}
+            accessibilityLabel={`${name} 사진`}
+          />
+        ) : (
+          <View style={[styles.thumbnail, styles.thumbnailFallback]}>
+            <BrandIcon name="bowl" size={25} color="#FFB694" />
+          </View>
+        )}
       </View>
 
       {/* 하단 액션 */}
@@ -125,7 +143,9 @@ export default function RestaurantCard({
                 e.stopPropagation();
                 onToggleWishlist?.();
               }}
-              style={[styles.stateBtn, wishlist && styles.wishlistBtnActive]}
+              disabled={updating}
+              accessibilityState={{ busy: updating, disabled: updating }}
+              style={[styles.stateBtn, wishlist && styles.wishlistBtnActive, updating && styles.disabled]}
               hitSlop={4}
             >
               <Ionicons
@@ -141,7 +161,9 @@ export default function RestaurantCard({
                 e.stopPropagation();
                 onToggleVisited?.();
               }}
-              style={[styles.stateBtn, visited && styles.visitedBtnActive]}
+              disabled={updating}
+              accessibilityState={{ busy: updating, disabled: updating }}
+              style={[styles.stateBtn, visited && styles.visitedBtnActive, updating && styles.disabled]}
               hitSlop={4}
             >
               <Ionicons
@@ -199,6 +221,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     flexShrink: 0,
   },
+  thumbnailFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF0E9' },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -241,6 +264,7 @@ const styles = StyleSheet.create({
   visitedBtnActive: { backgroundColor: '#00B894' },
   stateBtnText: { fontSize: 12, color: '#888', fontWeight: '500' },
   activeText: { color: '#fff' },
+  disabled: { opacity: 0.55 },
   copyBtn: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BrandIcon from '@/components/BrandIcon';
+import LoadErrorState from '@/components/LoadErrorState';
 import RestaurantCard from '@/components/RestaurantCard';
 import { notify } from '@/lib/confirm';
 import { useAuth } from '@/context/AuthContext';
@@ -38,20 +39,26 @@ export default function CollectionDetailScreen() {
   const [collection, setCollection] = useState<Collection | null>(null);
   const [items, setItems] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [copiedIds, setCopiedIds] = useState<Set<string>>(new Set());
+  const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
 
   // 관리자: 맛집 추가 패널
   const [adding, setAdding] = useState(false);
   const [feed, setFeed] = useState<DiscoverItem[] | null>(null);
+  const [feedLoading, setFeedLoading] = useState(false);
+  const [feedError, setFeedError] = useState(false);
   const [query, setQuery] = useState('');
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
     try {
       const [c, rs] = await Promise.all([getCollection(id), getCollectionRestaurants(id)]);
       setCollection(c);
       setItems(rs);
     } catch {
-      // 무시
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -68,23 +75,38 @@ export default function CollectionDetailScreen() {
   );
 
   async function handleCopy(r: Restaurant) {
+    if (pendingIds.has(r.id) || copiedIds.has(r.id)) return;
+    setPendingIds((prev) => new Set(prev).add(r.id));
     try {
       await copyRestaurant(r);
       setCopiedIds((prev) => new Set(prev).add(r.id));
       notify('담기 완료!', '내 리스트의 "가고싶음"에 추가됐어요.');
     } catch (e: any) {
       notify('오류', e.message ?? '담기에 실패했어요.');
+    } finally {
+      setPendingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(r.id);
+        return next;
+      });
     }
   }
 
   async function openAddPanel() {
     setAdding(true);
-    if (!feed) {
-      try {
-        setFeed(await getDiscoverFeed());
-      } catch {
-        notify('오류', '맛집 목록을 불러오지 못했어요.');
-      }
+    if (!feed) await loadCandidates();
+  }
+
+  async function loadCandidates() {
+    if (feedLoading) return;
+    setFeedLoading(true);
+    setFeedError(false);
+    try {
+      setFeed(await getDiscoverFeed());
+    } catch {
+      setFeedError(true);
+    } finally {
+      setFeedLoading(false);
     }
   }
 
@@ -104,21 +126,45 @@ export default function CollectionDetailScreen() {
   }, [feed, items, query]);
 
   async function handleAdd(it: DiscoverItem) {
+    if (pendingIds.has(it.representativeId)) return;
+    setPendingIds((prev) => new Set(prev).add(it.representativeId));
     try {
       await addToCollection(id, it.representativeId);
       await load();
     } catch (e: any) {
       notify('오류', e.message ?? '추가에 실패했어요.');
+    } finally {
+      setPendingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(it.representativeId);
+        return next;
+      });
     }
   }
 
   async function handleRemove(r: Restaurant) {
+    if (pendingIds.has(r.id)) return;
+    setPendingIds((prev) => new Set(prev).add(r.id));
     try {
       await removeFromCollection(id, r.id);
       setItems((prev) => prev.filter((x) => x.id !== r.id));
     } catch (e: any) {
       notify('오류', e.message ?? '제거에 실패했어요.');
+    } finally {
+      setPendingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(r.id);
+        return next;
+      });
     }
+  }
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <LoadErrorState onRetry={load} title="컬렉션 내용을 불러오지 못했어요" />
+      </SafeAreaView>
+    );
   }
 
   if (loading) {
@@ -179,9 +225,17 @@ export default function CollectionDetailScreen() {
                         <Ionicons name="close" size={20} color="#888" />
                       </Pressable>
                     </View>
-                    {!feed ? (
+                    {feedLoading ? (
                       <ActivityIndicator color="#6C5CE7" style={{ paddingVertical: 16 }} />
-                    ) : (
+                    ) : feedError ? (
+                      <View style={styles.panelError}>
+                        <Text style={styles.panelErrorText}>맛집 목록을 불러오지 못했어요.</Text>
+                        <Pressable style={styles.panelRetryBtn} onPress={loadCandidates}>
+                          <Ionicons name="refresh" size={15} color="#fff" />
+                          <Text style={styles.panelRetryText}>다시 시도</Text>
+                        </Pressable>
+                      </View>
+                    ) : !feed ? null : (
                       candidates.map((it) => (
                         <View key={it.key} style={styles.candRow}>
                           {it.image_url ? (
@@ -197,8 +251,17 @@ export default function CollectionDetailScreen() {
                               {[it.area, it.category].filter(Boolean).join(' · ')}
                             </Text>
                           </View>
-                          <Pressable style={styles.candAddBtn} onPress={() => handleAdd(it)} hitSlop={6}>
-                            <Ionicons name="add" size={18} color="#fff" />
+                          <Pressable
+                            style={[styles.candAddBtn, pendingIds.has(it.representativeId) && styles.disabled]}
+                            onPress={() => handleAdd(it)}
+                            disabled={pendingIds.has(it.representativeId)}
+                            hitSlop={6}
+                          >
+                            {pendingIds.has(it.representativeId) ? (
+                              <ActivityIndicator size="small" color="#fff" />
+                            ) : (
+                              <Ionicons name="add" size={18} color="#fff" />
+                            )}
                           </Pressable>
                         </View>
                       ))
@@ -215,18 +278,23 @@ export default function CollectionDetailScreen() {
           </>
         }
         renderItem={({ item }) => {
-          const already = myNames.has(normalize(item.name)) || copiedIds.has(item.id);
+          const already = myNames.has(normalize(item.name)) || copiedIds.has(item.id) || pendingIds.has(item.id);
           return (
             <View>
               <RestaurantCard
                 restaurant={item}
                 mode="browse"
-                onPress={() => router.push(`/detail/${item.id}`)}
+                onPress={() => router.push(`/detail/${item.id}` as any)}
                 onCopy={() => handleCopy(item)}
                 copied={already}
               />
               {isAdmin && (
-                <Pressable style={styles.removeRow} onPress={() => handleRemove(item)} hitSlop={4}>
+                <Pressable
+                  style={[styles.removeRow, pendingIds.has(item.id) && styles.disabled]}
+                  onPress={() => handleRemove(item)}
+                  disabled={pendingIds.has(item.id)}
+                  hitSlop={4}
+                >
                   <Ionicons name="remove-circle-outline" size={14} color="#FF7A45" />
                   <Text style={styles.removeText}>컬렉션에서 제거</Text>
                 </Pressable>
@@ -316,6 +384,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  panelError: { alignItems: 'center', gap: 9, paddingVertical: 14 },
+  panelErrorText: { fontSize: 13, color: '#888' },
+  panelRetryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 9,
+    backgroundColor: '#6C5CE7',
+  },
+  panelRetryText: { color: '#fff', fontSize: 12, fontWeight: '700' },
 
   removeRow: {
     flexDirection: 'row',
@@ -325,6 +405,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   removeText: { fontSize: 12, color: '#FF7A45' },
+  disabled: { opacity: 0.55 },
 
   emptyBox: { alignItems: 'center', paddingTop: 60, gap: 8 },
   emptyEmoji: { fontSize: 52 },

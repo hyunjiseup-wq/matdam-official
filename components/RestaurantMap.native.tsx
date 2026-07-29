@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import BrandIcon from '@/components/BrandIcon';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { Callout, Marker } from 'react-native-maps';
 import { CATEGORY_COLORS } from '@/constants/filters';
 import { useRestaurants } from '@/context/RestaurantContext';
@@ -21,6 +21,8 @@ export default function RestaurantMap() {
   const [items, setItems] = useState<MapItem[]>([]);
   const [missing, setMissing] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const [showMyLocation, setShowMyLocation] = useState(false);
 
   const openDetail = useCallback(
@@ -31,6 +33,8 @@ export default function RestaurantMap() {
   useEffect(() => {
     let disposed = false;
     (async () => {
+      setLoading(true);
+      setLoadError(false);
       try {
         const feed = await getDiscoverFeed();
         if (disposed) return;
@@ -40,7 +44,7 @@ export default function RestaurantMap() {
         setItems(withCoords);
         setMissing(feed.length - withCoords.length);
       } catch {
-        // 로드 실패 시 빈 지도 유지
+        if (!disposed) setLoadError(true);
       } finally {
         if (!disposed) setLoading(false);
       }
@@ -54,7 +58,7 @@ export default function RestaurantMap() {
     return () => {
       disposed = true;
     };
-  }, [getDiscoverFeed]);
+  }, [getDiscoverFeed, retryKey]);
 
   // 마커가 모두 보이도록 화면 맞추기
   useEffect(() => {
@@ -113,7 +117,17 @@ export default function RestaurantMap() {
           <ActivityIndicator size="large" color="#FF7A45" />
         </View>
       )}
-      {!loading && (
+      {!loading && loadError && (
+        <View style={styles.errorOverlay} accessibilityRole="alert">
+          <BrandIcon name="warning" size={30} color="#D45B2A" />
+          <Text style={styles.errorTitle}>지도를 불러오지 못했어요</Text>
+          <Text style={styles.errorText}>인터넷 연결을 확인하고 다시 시도해주세요.</Text>
+          <Pressable style={styles.retryBtn} onPress={() => setRetryKey((key) => key + 1)}>
+            <Text style={styles.retryText}>다시 시도</Text>
+          </Pressable>
+        </View>
+      )}
+      {!loading && !loadError && (
         <View style={styles.countBadge}>
           <BrandIcon name="bowl" size={13} color="#FF7A45" />
           <Text style={styles.countText}>
@@ -166,6 +180,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(245,245,245,0.7)',
   },
+  errorOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 32,
+    backgroundColor: 'rgba(245,245,245,0.94)',
+  },
+  errorTitle: { fontSize: 17, fontWeight: '800', color: '#333' },
+  errorText: { fontSize: 13, color: '#888', textAlign: 'center' },
+  retryBtn: { marginTop: 8, backgroundColor: '#FF7A45', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
+  retryText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   countBadge: { flexDirection: 'row', alignItems: 'center', gap: 5,
     position: 'absolute',
     bottom: 14,

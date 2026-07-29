@@ -121,7 +121,9 @@ export default function FeedbackScreen() {
             numberOfLines={6}
             textAlignVertical="top"
             editable={!sending}
+            maxLength={2000}
           />
+          <Text style={styles.counter}>{content.length}/2000</Text>
 
           {errorMsg ? <Text style={styles.error}>{errorMsg}</Text> : null}
 
@@ -164,6 +166,7 @@ const styles = StyleSheet.create({
     minHeight: 140,
   },
   error: { color: '#FF7A45', fontSize: 13, marginTop: -4 },
+  counter: { color: '#aaa', fontSize: 12, textAlign: 'right', marginTop: -8 },
   btn: {
     flexDirection: 'row',
     alignItems: 'center',

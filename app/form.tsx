@@ -232,6 +232,7 @@ export default function FormScreen() {
   }
 
   async function handleSave() {
+    if (saving) return;
     if (!form.name.trim()) {
       notify('입력 오류', '식당 이름을 입력해주세요.');
       return;
@@ -267,6 +268,7 @@ export default function FormScreen() {
       } else {
         await addRestaurant(payload);
       }
+      notify('저장 완료', isEdit ? '맛집 정보가 수정됐어요.' : '내 맛집 리스트에 추가됐어요.');
       router.back();
     } catch (e: any) {
       notify('오류', e.message ?? '저장에 실패했어요.');

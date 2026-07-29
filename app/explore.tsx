@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import * as Linking from 'expo-linking';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,6 +12,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BrandIcon from '@/components/BrandIcon';
 import Avatar from '@/components/Avatar';
+import LoadErrorState from '@/components/LoadErrorState';
+import { notify } from '@/lib/confirm';
+import { openExternalLink } from '@/lib/externalLink';
 import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
 import { Profile } from '@/types/restaurant';
@@ -23,13 +25,16 @@ export default function ExploreScreen() {
   const { getUsers, likeList, unlikeList } = useRestaurants();
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [pendingLikes, setPendingLikes] = useState<Set<string>>(() => new Set());
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       setUsers(await getUsers());
     } catch {
-      setUsers([]);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -42,6 +47,8 @@ export default function ExploreScreen() {
   );
 
   async function toggleLike(p: Profile) {
+    if (pendingLikes.has(p.id)) return;
+    setPendingLikes((prev) => new Set(prev).add(p.id));
     const liked = !p.liked;
     // 낙관적 업데이트
     setUsers((prev) =>
@@ -55,8 +62,29 @@ export default function ExploreScreen() {
       if (liked) await likeList(p.id);
       else await unlikeList(p.id);
     } catch {
-      load(); // 실패 시 새로고침
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === p.id
+            ? { ...u, liked: p.liked, like_count: p.like_count ?? 0 }
+            : u,
+        ),
+      );
+      notify('반영 실패', '좋아요를 저장하지 못했어요. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setPendingLikes((prev) => {
+        const next = new Set(prev);
+        next.delete(p.id);
+        return next;
+      });
     }
+  }
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <LoadErrorState onRetry={load} title="사용자 목록을 불러오지 못했어요" />
+      </SafeAreaView>
+    );
   }
 
   if (loading) {
@@ -101,7 +129,9 @@ export default function ExploreScreen() {
                   <Pressable
                     onPress={(e) => {
                       e.stopPropagation();
-                      Linking.openURL(item.sns_url!).catch(() => {});
+                      openExternalLink(item.sns_url!).catch(() =>
+                        notify('링크 열기 실패', 'SNS 링크를 열 수 없어요. 주소를 확인해주세요.'),
+                      );
                     }}
                     style={styles.snsRow}
                     hitSlop={4}
@@ -120,7 +150,10 @@ export default function ExploreScreen() {
                 }}
                 style={styles.likeBtn}
                 hitSlop={6}
-                disabled={isMe}
+                disabled={isMe || pendingLikes.has(item.id)}
+                accessibilityRole="button"
+                accessibilityLabel={item.liked ? `${item.display_name} 리스트 좋아요 취소` : `${item.display_name} 리스트 좋아요`}
+                accessibilityState={{ disabled: isMe || pendingLikes.has(item.id), busy: pendingLikes.has(item.id) }}
               >
                 <Ionicons
                   name={item.liked ? 'heart' : 'heart-outline'}

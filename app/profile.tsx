@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -15,8 +15,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BrandIcon from '@/components/BrandIcon';
 import Avatar from '@/components/Avatar';
+import LoadErrorState from '@/components/LoadErrorState';
 import { confirmAction, notify } from '@/lib/confirm';
 import { AVATAR_MAX_DIM } from '@/lib/imagePrep';
+import { isSafeExternalUrl } from '@/lib/externalLink';
 import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
 import { MyInfluence } from '@/types/restaurant';
@@ -37,14 +39,18 @@ export default function ProfileScreen() {
   const [savingEmail, setSavingEmail] = useState(false);
   const [newPw, setNewPw] = useState('');
   const [savingPw, setSavingPw] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      if (!user) return;
+  const loadProfile = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    setLoadError(false);
+    try {
       const [p, inf, blocked] = await Promise.all([getProfile(user.id), getMyInfluence(), getBlockedProfiles()]);
       setBlockedList(blocked);
       if (p) {
@@ -55,9 +61,16 @@ export default function ProfileScreen() {
         setPreferredRegion(p.preferred_region ?? '');
       }
       setInfluence(inf);
+    } catch {
+      setLoadError(true);
+    } finally {
       setLoading(false);
-    })();
-  }, [user, getProfile, getMyInfluence, getBlockedProfiles]);
+    }
+  }, [user, displayName, getProfile, getMyInfluence, getBlockedProfiles]);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
   async function handleUnblock(uid: string, name: string) {
     try {
@@ -73,6 +86,7 @@ export default function ProfileScreen() {
   const hasRealEmail = !!user?.email && !user.email.endsWith('@seoulmatjip.app');
 
   async function handleRegisterEmail() {
+    if (savingEmail) return;
     if (!securityEmail.trim()) {
       notify('입력 오류', '이메일 주소를 입력해주세요.');
       return;
@@ -93,8 +107,13 @@ export default function ProfileScreen() {
   }
 
   async function handleChangePassword() {
+    if (savingPw) return;
     if (newPw.length < 8) {
-      notify('입력 오류', '비밀번호는 8자 이상, 영문과 숫자를 포함해야 해요.');
+      notify('입력 오류', '비밀번호는 8자 이상이어야 해요.');
+      return;
+    }
+    if (!/[A-Za-z]/.test(newPw) || !/\d/.test(newPw)) {
+      notify('입력 오류', '비밀번호에 영문과 숫자를 모두 포함해주세요.');
       return;
     }
     setSavingPw(true);
@@ -134,8 +153,17 @@ export default function ProfileScreen() {
   }
 
   async function handleSave() {
+    if (saving) return;
     if (!name.trim()) {
       notify('닉네임을 입력해주세요');
+      return;
+    }
+    if (name.trim().length < 2) {
+      notify('입력 오류', '닉네임은 2자 이상 입력해주세요.');
+      return;
+    }
+    if (snsUrl.trim() && !isSafeExternalUrl(snsUrl)) {
+      notify('입력 오류', 'SNS 링크는 http:// 또는 https://로 시작하는 올바른 주소를 입력해주세요.');
       return;
     }
     setSaving(true);
@@ -182,6 +210,14 @@ export default function ProfileScreen() {
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#FF7A45" />
       </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <LoadErrorState onRetry={loadProfile} title="프로필을 불러오지 못했어요" />
+      </SafeAreaView>
     );
   }
 
@@ -254,6 +290,7 @@ export default function ProfileScreen() {
             onChangeText={setName}
             placeholder="예: 푸드마스터"
             placeholderTextColor="#bbb"
+            maxLength={30}
           />
 
           <Text style={styles.label}>소개 (내 리스트에 표시돼요)</Text>
@@ -266,6 +303,7 @@ export default function ProfileScreen() {
             multiline
             numberOfLines={3}
             textAlignVertical="top"
+            maxLength={300}
           />
 
           <Text style={styles.label}>관심 지역 (홈에 추천 맛집이 떠요)</Text>
@@ -275,6 +313,7 @@ export default function ProfileScreen() {
             onChangeText={setPreferredRegion}
             placeholder="예: 제주  /  성수, 연남  /  강릉"
             placeholderTextColor="#bbb"
+            maxLength={100}
           />
           <Text style={styles.regionHint}>
             여행 갈 곳이나 자주 가는 동네를 적어두세요. 쉼표로 여러 곳도 가능해요.
@@ -289,6 +328,7 @@ export default function ProfileScreen() {
             placeholderTextColor="#bbb"
             autoCapitalize="none"
             keyboardType="url"
+            maxLength={500}
           />
 
           <Pressable
@@ -340,6 +380,7 @@ export default function ProfileScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="email-address"
+              maxLength={254}
             />
             <Pressable
               style={({ pressed }) => [styles.securityBtn, pressed && { opacity: 0.85 }, savingEmail && { opacity: 0.6 }]}
@@ -353,14 +394,27 @@ export default function ProfileScreen() {
             </Pressable>
 
             <Text style={[styles.label, { marginTop: 14 }]}>비밀번호 변경</Text>
-            <TextInput
-              style={styles.input}
-              value={newPw}
-              onChangeText={setNewPw}
-              placeholder="새 비밀번호 (8자 이상, 영문+숫자)"
-              placeholderTextColor="#bbb"
-              secureTextEntry
-            />
+            <View style={styles.passwordWrap}>
+              <TextInput
+                style={styles.passwordInput}
+                value={newPw}
+                onChangeText={setNewPw}
+                placeholder="새 비밀번호 (8자 이상, 영문+숫자)"
+                placeholderTextColor="#bbb"
+                secureTextEntry={!showPassword}
+                editable={!savingPw}
+                maxLength={128}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+                onPress={() => setShowPassword((visible) => !visible)}
+                hitSlop={10}
+                style={styles.passwordToggle}
+              >
+                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={21} color="#777" />
+              </Pressable>
+            </View>
             <Pressable
               style={({ pressed }) => [styles.securityBtn, pressed && { opacity: 0.85 }, savingPw && { opacity: 0.6 }]}
               onPress={handleChangePassword}
@@ -466,6 +520,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#eee',
   },
+  passwordWrap: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  passwordInput: {
+    flex: 1,
+    paddingLeft: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: '#222',
+  },
+  passwordToggle: { paddingHorizontal: 14, alignSelf: 'stretch', justifyContent: 'center' },
   textarea: { height: 80, paddingTop: 12 },
   regionHint: { fontSize: 11, color: '#aaa', marginTop: 6, lineHeight: 15 },
   saveBtn: {

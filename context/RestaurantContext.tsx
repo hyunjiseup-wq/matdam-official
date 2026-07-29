@@ -41,6 +41,7 @@ interface RestaurantContextType {
   filteredRestaurants: Restaurant[];
   loading: boolean;
   error: string | null;
+  refreshRestaurants: () => Promise<void>;
   searchQuery: string;
   provinceFilter: string | null;
   areaFilter: string | null;
@@ -257,6 +258,21 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       setError(null);
     }
   }, []);
+
+  const refreshRestaurants = useCallback(async () => {
+    if (!userId) {
+      setRestaurants([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      await fetchMine(userId);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId, fetchMine]);
 
   useEffect(() => {
     if (!userId) {
@@ -1075,6 +1091,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       filteredRestaurants,
       loading,
       error,
+      refreshRestaurants,
       searchQuery,
       provinceFilter,
       areaFilter,
@@ -1134,6 +1151,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       filteredRestaurants,
       loading,
       error,
+      refreshRestaurants,
       searchQuery,
       provinceFilter,
       areaFilter,

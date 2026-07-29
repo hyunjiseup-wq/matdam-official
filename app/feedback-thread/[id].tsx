@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LoadErrorState from '@/components/LoadErrorState';
 import { confirmAction, notify } from '@/lib/confirm';
 import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
@@ -46,14 +47,23 @@ export default function FeedbackThreadScreen() {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [replies, setReplies] = useState<FeedbackReply[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [adminAction, setAdminAction] = useState<'status' | 'delete' | null>(null);
 
   const load = useCallback(async () => {
-    const [fb, reps] = await Promise.all([getFeedbackById(id), getFeedbackReplies(id)]);
-    setFeedback(fb);
-    setReplies(reps);
-    setLoading(false);
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const [fb, reps] = await Promise.all([getFeedbackById(id), getFeedbackReplies(id)]);
+      setFeedback(fb);
+      setReplies(reps);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, [id, getFeedbackById, getFeedbackReplies]);
 
   useEffect(() => {
@@ -65,6 +75,14 @@ export default function FeedbackThreadScreen() {
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#FF7A45" />
       </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <LoadErrorState onRetry={load} title="피드백 대화를 불러오지 못했어요" />
+      </SafeAreaView>
     );
   }
 
@@ -102,21 +120,31 @@ export default function FeedbackThreadScreen() {
   }
 
   async function changeStatus(status: FeedbackStatus) {
+    if (adminAction) return;
+    setAdminAction('status');
     try {
       await setFeedbackStatus(id, status);
       setFeedback((f) => (f ? { ...f, status } : f));
+      notify('상태 변경 완료', `피드백 상태를 "${STATUS_LABEL[status].label}"로 변경했어요.`);
     } catch (e: any) {
-      notify('오류', e.message ?? '');
+      notify('상태 변경 실패', e.message ?? '잠시 후 다시 시도해주세요.');
+    } finally {
+      setAdminAction(null);
     }
   }
 
   function handleDelete() {
     confirmAction('피드백 삭제', '이 피드백과 대화를 모두 삭제할까요?', async () => {
+      if (adminAction) return;
+      setAdminAction('delete');
       try {
         await deleteFeedback(id);
+        notify('삭제 완료', '피드백과 대화를 삭제했어요.');
         router.back();
       } catch (e: any) {
-        notify('오류', e.message ?? '');
+        notify('삭제 실패', e.message ?? '잠시 후 다시 시도해주세요.');
+      } finally {
+        setAdminAction(null);
       }
     }, '삭제', true);
   }
@@ -144,17 +172,38 @@ export default function FeedbackThreadScreen() {
           {/* 관리자 컨트롤 */}
           {isAdmin && (
             <View style={styles.adminBar}>
-              <Pressable onPress={() => changeStatus('resolved')} style={[styles.adminBtn, { borderColor: '#00B894' }]}>
+              <Pressable
+                onPress={() => changeStatus('resolved')}
+                disabled={adminAction !== null}
+                accessibilityState={{ busy: adminAction === 'status', disabled: adminAction !== null }}
+                style={[styles.adminBtn, { borderColor: '#00B894' }, adminAction && styles.disabled]}
+              >
                 <Text style={[styles.adminBtnText, { color: '#00B894' }]}>처리완료</Text>
               </Pressable>
-              <Pressable onPress={() => changeStatus('archived')} style={[styles.adminBtn, { borderColor: '#888' }]}>
+              <Pressable
+                onPress={() => changeStatus('archived')}
+                disabled={adminAction !== null}
+                style={[styles.adminBtn, { borderColor: '#888' }, adminAction && styles.disabled]}
+              >
                 <Text style={[styles.adminBtnText, { color: '#888' }]}>보관</Text>
               </Pressable>
-              <Pressable onPress={() => changeStatus('open')} style={[styles.adminBtn, { borderColor: '#E1A100' }]}>
+              <Pressable
+                onPress={() => changeStatus('open')}
+                disabled={adminAction !== null}
+                style={[styles.adminBtn, { borderColor: '#E1A100' }, adminAction && styles.disabled]}
+              >
                 <Text style={[styles.adminBtnText, { color: '#E1A100' }]}>다시열기</Text>
               </Pressable>
-              <Pressable onPress={handleDelete} style={[styles.adminBtn, { borderColor: '#FF7A45' }]}>
-                <Ionicons name="trash-outline" size={14} color="#FF7A45" />
+              <Pressable
+                onPress={handleDelete}
+                disabled={adminAction !== null}
+                style={[styles.adminBtn, { borderColor: '#FF7A45' }, adminAction && styles.disabled]}
+              >
+                {adminAction === 'delete' ? (
+                  <ActivityIndicator size="small" color="#FF7A45" />
+                ) : (
+                  <Ionicons name="trash-outline" size={14} color="#FF7A45" />
+                )}
               </Pressable>
             </View>
           )}
@@ -191,9 +240,20 @@ export default function FeedbackThreadScreen() {
             placeholder={isAdmin ? '답변 입력...' : '추가 의견 입력...'}
             placeholderTextColor="#bbb"
             multiline
+            maxLength={2000}
+            editable={!sending}
           />
-          <Pressable onPress={handleSend} disabled={sending} style={[styles.sendBtn, sending && { opacity: 0.5 }]}>
-            <Ionicons name="send" size={18} color="#fff" />
+          <Pressable
+            onPress={handleSend}
+            disabled={sending || !text.trim()}
+            accessibilityState={{ busy: sending, disabled: sending || !text.trim() }}
+            style={[styles.sendBtn, (sending || !text.trim()) && { opacity: 0.5 }]}
+          >
+            {sending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons name="send" size={18} color="#fff" />
+            )}
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -225,6 +285,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   adminBtnText: { fontSize: 12, fontWeight: '700' },
+  disabled: { opacity: 0.5 },
   threadTitle: { fontSize: 14, fontWeight: '700', color: '#555', marginTop: 6 },
   bubbleRow: { flexDirection: 'row' },
   rowLeft: { justifyContent: 'flex-start' },

@@ -3,11 +3,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BrandIcon from '@/components/BrandIcon';
 import { useAuth } from '@/context/AuthContext';
-import { notify } from '@/lib/confirm';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -15,13 +14,16 @@ export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [formError, setFormError] = useState('');
 
   async function handleSend() {
+    if (sending) return;
     const v = email.trim();
-    if (!v.includes('@')) {
-      notify('입력 오류', '가입 후 마이 탭에서 등록한 이메일 주소를 입력해주세요.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) {
+      setFormError('가입 후 마이 탭에서 등록한 올바른 이메일 주소를 입력해주세요.');
       return;
     }
+    setFormError('');
     setSending(true);
     try {
       await requestPasswordReset(v);
@@ -57,9 +59,12 @@ export default function ForgotPasswordScreen() {
         ) : (
           <>
             <TextInput
-              style={styles.input}
+              style={[styles.input, !!formError && styles.inputError]}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(value) => {
+                setEmail(value);
+                setFormError('');
+              }}
               placeholder="이메일 주소"
               placeholderTextColor="#bbb"
               autoCapitalize="none"
@@ -67,13 +72,25 @@ export default function ForgotPasswordScreen() {
               keyboardType="email-address"
               returnKeyType="done"
               onSubmitEditing={handleSend}
+              editable={!sending}
+              maxLength={254}
             />
+            {!!formError && (
+              <View style={styles.errorBox} accessibilityRole="alert">
+                <Ionicons name="alert-circle-outline" size={18} color="#C62828" />
+                <Text style={styles.errorText}>{formError}</Text>
+              </View>
+            )}
             <Pressable
               style={({ pressed }) => [styles.btn, pressed && { opacity: 0.85 }, sending && { opacity: 0.6 }]}
               onPress={handleSend}
               disabled={sending}
             >
-              <Ionicons name="mail-outline" size={18} color="#fff" />
+              {sending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="mail-outline" size={18} color="#fff" />
+              )}
               <Text style={styles.btnText}>{sending ? '보내는 중...' : '재설정 링크 보내기'}</Text>
             </Pressable>
             <Text style={styles.hint}>
@@ -105,6 +122,19 @@ const styles = StyleSheet.create({
     borderColor: '#eee',
     marginBottom: 12,
   },
+  inputError: { borderColor: '#D32F2F', backgroundColor: '#FFF8F8' },
+  errorBox: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#FFEBEE',
+    marginBottom: 12,
+  },
+  errorText: { flex: 1, color: '#B71C1C', fontSize: 13, lineHeight: 19, fontWeight: '600' },
   btn: {
     alignSelf: 'stretch',
     flexDirection: 'row',

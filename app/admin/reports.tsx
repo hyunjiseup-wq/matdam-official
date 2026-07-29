@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LoadErrorState from '@/components/LoadErrorState';
 import { confirmAction, notify } from '@/lib/confirm';
 import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
@@ -40,13 +41,17 @@ export default function AdminReportsScreen() {
   const { getReports, setReportStatus, deleteReview } = useRestaurants();
   const [items, setItems] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
   const [filter, setFilter] = useState<'all' | ReportStatus>('open');
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
     try {
       setItems(await getReports());
     } catch {
-      setItems([]);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -60,12 +65,28 @@ export default function AdminReportsScreen() {
   );
 
   async function updateStatus(report: Report, status: ReportStatus) {
+    if (pendingIds.has(report.id)) return;
+    setPendingIds((prev) => new Set(prev).add(report.id));
     try {
       await setReportStatus(report.id, status);
       setItems((prev) => prev.map((r) => (r.id === report.id ? { ...r, status } : r)));
     } catch (e: any) {
       notify('오류', e.message ?? '상태 변경 실패');
+    } finally {
+      setPendingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(report.id);
+        return next;
+      });
     }
+  }
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <LoadErrorState onRetry={load} title="신고 목록을 불러오지 못했어요" />
+      </SafeAreaView>
+    );
   }
 
   function openTarget(report: Report) {
@@ -78,12 +99,23 @@ export default function AdminReportsScreen() {
 
   function handleDeleteReview(report: Report) {
     confirmAction('리뷰 삭제', '신고된 리뷰를 삭제하고 처리완료로 표시할까요?', async () => {
+      if (pendingIds.has(report.id)) return;
+      setPendingIds((prev) => new Set(prev).add(report.id));
       try {
         await deleteReview(report.target_id);
-        await updateStatus(report, 'resolved');
+        await setReportStatus(report.id, 'resolved');
+        setItems((prev) =>
+          prev.map((item) => (item.id === report.id ? { ...item, status: 'resolved' } : item)),
+        );
         notify('삭제 완료', '리뷰를 삭제하고 신고를 처리했어요.');
       } catch (e: any) {
         notify('오류', e.message ?? '삭제 실패 (이미 삭제된 리뷰일 수 있어요)');
+      } finally {
+        setPendingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(report.id);
+          return next;
+        });
       }
     }, '삭제', true);
   }
@@ -150,24 +182,28 @@ export default function AdminReportsScreen() {
                   </Pressable>
                 )}
                 {item.target_type === 'review' && item.status === 'open' && (
-                  <Pressable style={styles.actionBtn} onPress={() => handleDeleteReview(item)}>
+                  <Pressable
+                    style={[styles.actionBtn, pendingIds.has(item.id) && styles.disabled]}
+                    onPress={() => handleDeleteReview(item)}
+                    disabled={pendingIds.has(item.id)}
+                  >
                     <Ionicons name="trash-outline" size={14} color="#E74C3C" />
                     <Text style={[styles.actionText, { color: '#E74C3C' }]}>리뷰 삭제</Text>
                   </Pressable>
                 )}
                 {item.status === 'open' ? (
                   <>
-                    <Pressable style={styles.actionBtn} onPress={() => updateStatus(item, 'resolved')}>
+                    <Pressable style={styles.actionBtn} onPress={() => updateStatus(item, 'resolved')} disabled={pendingIds.has(item.id)}>
                       <Ionicons name="checkmark-circle-outline" size={14} color="#00B894" />
                       <Text style={[styles.actionText, { color: '#00B894' }]}>처리완료</Text>
                     </Pressable>
-                    <Pressable style={styles.actionBtn} onPress={() => updateStatus(item, 'dismissed')}>
+                    <Pressable style={styles.actionBtn} onPress={() => updateStatus(item, 'dismissed')} disabled={pendingIds.has(item.id)}>
                       <Ionicons name="close-circle-outline" size={14} color="#aaa" />
                       <Text style={[styles.actionText, { color: '#aaa' }]}>기각</Text>
                     </Pressable>
                   </>
                 ) : (
-                  <Pressable style={styles.actionBtn} onPress={() => updateStatus(item, 'open')}>
+                  <Pressable style={styles.actionBtn} onPress={() => updateStatus(item, 'open')} disabled={pendingIds.has(item.id)}>
                     <Ionicons name="refresh-outline" size={14} color="#E1A100" />
                     <Text style={[styles.actionText, { color: '#E1A100' }]}>다시 열기</Text>
                   </Pressable>
@@ -228,6 +264,7 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', gap: 14, marginTop: 2, flexWrap: 'wrap' },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   actionText: { fontSize: 13, fontWeight: '600' },
+  disabled: { opacity: 0.5 },
   emptyBox: { alignItems: 'center', paddingTop: 60 },
   emptySub: { fontSize: 14, color: '#aaa' },
 });

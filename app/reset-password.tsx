@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import BrandIcon from '@/components/BrandIcon';
 import { useAuth } from '@/context/AuthContext';
 import { notify } from '@/lib/confirm';
+import { getPasswordValidationError } from '@/lib/password';
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
@@ -21,12 +22,9 @@ export default function ResetPasswordScreen() {
   async function handleSave() {
     if (saving) return;
     setFormError('');
-    if (pw1.length < 8) {
-      setFormError('비밀번호는 8자 이상 입력해주세요.');
-      return;
-    }
-    if (!/[A-Za-z]/.test(pw1) || !/\d/.test(pw1)) {
-      setFormError('비밀번호에 영문과 숫자를 모두 포함해주세요.');
+    const passwordError = getPasswordValidationError(pw1);
+    if (passwordError) {
+      setFormError(passwordError);
       return;
     }
     if (pw1 !== pw2) {

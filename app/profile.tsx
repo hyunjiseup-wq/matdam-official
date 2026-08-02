@@ -19,6 +19,7 @@ import LoadErrorState from '@/components/LoadErrorState';
 import { confirmAction, notify } from '@/lib/confirm';
 import { AVATAR_MAX_DIM } from '@/lib/imagePrep';
 import { isSafeExternalUrl } from '@/lib/externalLink';
+import { getPasswordValidationError } from '@/lib/password';
 import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
 import { MyInfluence } from '@/types/restaurant';
@@ -108,12 +109,9 @@ export default function ProfileScreen() {
 
   async function handleChangePassword() {
     if (savingPw) return;
-    if (newPw.length < 8) {
-      notify('입력 오류', '비밀번호는 8자 이상이어야 해요.');
-      return;
-    }
-    if (!/[A-Za-z]/.test(newPw) || !/\d/.test(newPw)) {
-      notify('입력 오류', '비밀번호에 영문과 숫자를 모두 포함해주세요.');
+    const passwordError = getPasswordValidationError(newPw);
+    if (passwordError) {
+      notify('입력 오류', passwordError);
       return;
     }
     setSavingPw(true);

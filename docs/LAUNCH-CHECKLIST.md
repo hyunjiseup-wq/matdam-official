@@ -21,11 +21,11 @@
 - [x] C1. Expo SDK 51 → 56 업그레이드 (RN 0.85·React 19·TS 6.0, Play API 35 충족) — tsc·export·브라우저 스모크 통과
 - [x] C2. 번들 ID `com.matdam.app` + scheme `matdam` (app.json) — 스토어 제출 전까지는 변경 가능
 - [x] C3. 앱 아이콘·스플래시·adaptiveIcon — "핀 속 밥그릇" 마크 확정, assets/ 4종(1024 아이콘·adaptive 전경·스플래시 로고·웹 파비콘) + expo-splash-screen 플러그인 설정
-- [x] C4. 네이티브 지도 — components/RestaurantMap 플랫폼 분리 (웹 Leaflet 유지 + 네이티브 react-native-maps, 마커·콜아웃·내위치). ⚠️ **Android 빌드 전 Google Maps API 키 필요** (app.json android.config.googleMaps.apiKey)
+- [x] C4. 네이티브 지도 — components/RestaurantMap 플랫폼 분리 (웹 Leaflet 유지 + 네이티브 react-native-maps, 마커·콜아웃·내위치). ⚠️ **Android 빌드 전 Google Maps API 키 필요** (`app.config.js`가 EAS `GOOGLE_MAPS_API_KEY`를 주입)
 - [x] C5. 위치 — lib/geo.ts (웹 geolocation / 네이티브 expo-location 공용), 가까운순 연결 + 한국어 권한 문구 플러그인
 - [x] C6. 공유 — 이미 크로스플랫폼 (네이티브 RN Share 시트 / 웹 클립보드), 코드 확인 완료
-- [x] C7. 푸시 알림 — 클라이언트 토큰 등록(lib/push.ts) + push_tokens 테이블(migration15) + DB 트리거→Expo 푸시 API 직접 발송(migration16: 담김·피드백 답변 알림). 서버 파이프라인 실검증 완료(Expo HTTP 200 응답). ⚠️ **잔여: Android FCM(Firebase) 설정 + 실기기 수신 확인 — 스토어 제출용 최종 빌드 때 함께 진행** (푸시 실패해도 앱은 정상 동작)
-- [ ] C8. 딥링크 라우팅 검증 (matdam:// → 상세/리스트) — 스킴 설정 완료, 실기기 빌드에서 검증
+- [x] C7. 푸시 알림 — 클라이언트 토큰 등록(lib/push.ts) + push_tokens 테이블(migration15) + DB 트리거→Expo 푸시 API 직접 발송(migration16: 담김·피드백 답변 알림) + 포그라운드 표시·알림 탭 내부 라우팅 구현. 서버 파이프라인 실검증 완료(Expo HTTP 200 응답). ⚠️ **잔여: Android FCM(Firebase) 설정 + 실기기 수신·탭 이동 확인 — 스토어 제출용 최종 빌드 때 함께 진행** (푸시 실패해도 앱은 정상 동작)
+- [ ] C8. 딥링크 라우팅 검증 (matdam:// → 상세/리스트/비밀번호 재설정) — 스킴·Supabase 복구 세션 처리 구현 완료, Supabase Redirect URLs에 `matdam://**` 등록 후 실기기 빌드에서 검증
 - [x] C9. EAS 빌드 — 프로젝트 연결(@halle1027/seoul-restaurant-list), 키스토어 EAS 자동 관리, GOOGLE_MAPS_API_KEY 환경변수(sensitive) 주입, 첫 preview APK 빌드 성공 (SDK 56, 2026-07-06)
 
 ## D. 스토어 제출 준비물
@@ -37,19 +37,22 @@
 - [ ] D6. TestFlight 베타
 
 ## E. 보안·남용 방지
-- [x] E1. /api/extract-place rate limit(IP당 분당 10회) + CORS 자사 도메인 제한 + 내부망 링크 차단(SSRF)
+- [x] E1. /api/extract-place 인증 JWT 원격 검증 + 사용자당 분당 10회 제한(인스턴스별) + CORS 자사 도메인 제한 + JSON 강제 + 내부망 링크 차단(SSRF). ⚠️ 다중 인스턴스 통합 제한은 Vercel Firewall/외부 rate-limit 저장소 도입 시 추가
 - [x] E2. 이미지 업로드 제한 — 버킷 5MB·이미지 MIME 만(migration13) + 클라이언트 리사이즈(긴 변 1600px·아바타 512px, JPEG 변환)
 - [x] E3. Captcha 검토 완료 — **출시 초기 보류** 결정. 비번 정책+가입 rate limit 이 1차 방어. 봇 가입 징후 보이면 Cloudflare Turnstile 발급 → 대시보드 Attack Protection 켜기 → signUp/signIn 에 captchaToken 연동 (코드 반나절)
-- [x] E4. 이메일 등록 + 비밀번호 재설정 — 마이 탭 로그인·보안 카드(이메일 등록·비번 변경), /forgot-password·/reset-password, 로그인 화면 이메일 겸용. **사용자: 대시보드 2건 필요 — Auth→Email "Secure email change" OFF, Auth→URL Configuration에 Site URL·/reset-password 등록**
-- [x] E5. 비밀번호 정책 서버 강제 확인 — 8자 미만·숫자만·문자만 모두 거부됨 (실가입 테스트)
+- [x] E4. 이메일 등록 + 비밀번호 재설정 — 마이 탭 로그인·보안 카드(이메일 등록·비번 변경), /forgot-password·/reset-password, 로그인 화면 이메일 겸용, 네이티브 복구 토큰 세션 처리. **사용자: 대시보드 2건 필요 — Auth→Email "Secure email change" OFF, Auth→URL Configuration에 Site URL·`/reset-password`·`matdam://**` 등록**
+- [x] E5. 비밀번호 정책 서버 강제 확인 — 8자 미만·숫자만·문자만 모두 거부됨 (실가입 테스트). 회원가입·재설정·프로필·AuthContext·로컬 Supabase 설정도 공통 정책 모듈로 일치(2026-08-01)
+- [x] E6. 로그아웃 범위 — 현재 기기 세션만 종료(`scope: local`), 반환 오류 처리
 
 ## F. 운영/안정성
 - [x] F1. 에러 로깅(Sentry) — 가동 중: lib/sentry 플랫폼 분리(웹 @sentry/browser, 네이티브 @sentry/react-native). DSN 3곳 등록 완료(로컬 .env·Vercel prod/preview/dev·EAS preview/production/development, 2026-07-17). 웹 프로덕션에서 실제 이벤트 전송 검증. 네이티브는 다음 EAS 빌드부터 포함. 스토어 제출용 최종 빌드 전 소스맵 플러그인(@sentry/react-native/expo) 추가 예정
 - [x] F2. 업타임 모니터링 — UptimeRobot 무료 계정, 모니터 2개 등록 완료 (2026-07-18): 웹(matdam-official.vercel.app) + Supabase(auth/v1/health), 5분 간격·이메일 알림. Vercel/Supabase 사용량 알림은 각 대시보드 기본 이메일 알림으로 커버
-- [ ] F3. DB 백업 — 주간 암호화 덤프 워크플로 준비 완료(.github/workflows/db-backup.yml, docs/BACKUP.md). **사용자: 저장소 시크릿 2개(SUPABASE_DB_URL·BACKUP_PASSPHRASE) 등록하면 활성화**
+- [ ] F3. DB 백업 — 주간 암호화 `public` 스키마 논리 덤프 워크플로 준비 완료(.github/workflows/db-backup.yml, docs/BACKUP.md), CLI 2.101.0 옵션 검증·고정, 미설정 시 실패 경고. **남은 작업: 저장소 시크릿 2개(SUPABASE_DB_URL·BACKUP_PASSPHRASE) 등록 후 수동 백업·스테이징 복원 검증, auth·Storage 객체를 포함한 전체 재해 복구 수단 확정**
 - [x] F4. 조회 인덱스 8종 추가(migration14) — 리뷰·피드백·좋아요·신고·차단·컬렉션 경로. 텍스트/좌표 인덱스는 서버측 검색 도입 시(현재 전부 클라이언트 필터링)
 - [ ] F5. OSM 타일 → 상용 타일(MapTiler 등) 전환 (1만 MAU 전)
 - [x] F6. Nominatim 대응 — 역지오코딩 결과 24h 캐시(좌표 4자리 반올림) + 인스턴스당 1req/s 간격. 호출 자체가 구글 링크 붙여넣기 때만 발생해 저볼륨
+- [x] F7. 의존성 업데이트 감시 — Dependabot이 npm·GitHub Actions를 매주 점검하고 PR 생성(자동 병합 없음). GitHub Actions를 2026-08-01 최신 안정 세대로 갱신하고 40자 커밋 SHA로 고정, checkout 자격증명 미보존. npm 설치 스크립트는 Sentry CLI 2.58.4만 버전 고정 허용하고 비기능성 core-js 후원 스크립트는 거부
+- [x] F8. Vercel Preview 검증 — Preview 환경변수 동기화·명시적 주입 빌드·prebuilt 배포 완료(2026-08-01). 헤드리스 브라우저 렌더링, 루트 200·보안 헤더, API GET 405·무인증 JSON POST 401 확인. CSP·HSTS·클릭재킹 방지 헤더 추가 후 새 Preview에서 실응답 검증. 라우트 번들 검사와 실제 Chrome 런타임 검사를 `npm run check`에 추가하고 Vercel 산출물도 배포 전에 같은 검사로 검증. Windows 클라우드 ReparsePoint로 인한 빈 라우트 번들의 원인을 제거. Production 배포는 수행하지 않음
 
 ## G. 측정 (KPI)
 - [x] G1. 분석(PostHog) — **가동 중**: lib/analytics 플랫폼 분리(웹 posthog-js, 네이티브 posthog-react-native). 이벤트: 회원가입·맛집 등록(입력방식별)·맛집 담기·리스트 공유 + 웹 페이지뷰 자동 수집. 로그인 시 uid로 identify(개인정보 미전송)·로그아웃 시 reset. Project API Key 3곳 등록 완료(로컬 .env·Vercel prod/preview/dev·EAS preview/production/development, 2026-07-17), 웹 프로덕션 실전송 검증(이벤트 POST 200). 네이티브는 다음 EAS 빌드부터 포함. 참고: PostHog는 헤드리스 브라우저를 기본 차단 → 스모크 테스트 방문은 지표에 안 잡힘

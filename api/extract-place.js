@@ -17,12 +17,21 @@ const CATEGORIES = [
   'BAR', '카페', '분식', '디저트', '쇼핑', '생활/문화',
 ];
 
+const dns = require('node:dns').promises;
+const net = require('node:net');
+
+const FETCH_TIMEOUT_MS = 10_000;
+const AUTH_TIMEOUT_MS = 5_000;
+const MAX_PAGE_BYTES = 2 * 1024 * 1024;
+const MAX_REDIRECTS = 5;
+const ALLOWED_MAP_HOSTS = ['naver.me', 'naver.com', 'goo.gl', 'google.com', 'google.co.kr'];
+
 const CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
 
 const UA =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 
-// ── 남용 방지: CORS 오리진 제한 + IP별 요청 제한 ─────────────────────────────
+// ── 남용 방지: CORS 오리진 제한 + 사용자별 요청 제한 ──────────────────────────
 
 // 브라우저 요청은 자사 도메인(프로덕션·프리뷰)과 로컬 개발만 허용.
 // Origin 헤더가 없는 요청(네이티브 앱, 서버 간 호출)은 CORS 대상이 아니므로 통과.
@@ -36,9 +45,9 @@ function isAllowedOrigin(origin) {
   return false;
 }
 
-// 인메모리 rate limit (서버리스 인스턴스별). 완벽하진 않지만 한 IP의
+// 인메모리 rate limit (서버리스 인스턴스별). 완벽하진 않지만 한 계정의
 // 반복 호출(스크래핑 프록시화)을 막는 1차 방어선 역할을 한다.
-const RATE_LIMIT = 10; // IP당 분당 최대 요청 수
+const RATE_LIMIT = 10; // 사용자당 분당 최대 요청 수
 const RATE_WINDOW_MS = 60_000;
 const rateHits = new Map(); // ip → 최근 요청 시각 배열
 
@@ -60,27 +69,108 @@ function isRateLimited(ip) {
 }
 
 // 내부망을 향한 링크 차단 (SSRF 방어)
-function isPrivateTarget(u) {
+function isAllowedMapUrl(rawUrl) {
   try {
-    const h = new URL(u).hostname.toLowerCase();
-    if (h === 'localhost' || h.endsWith('.local') || h.endsWith('.internal')) return true;
-    if (h.includes(':')) return true; // IPv6 리터럴
-    const ip4 = h.match(/^(\d+)\.(\d+)\.\d+\.\d+$/);
-    if (ip4) {
-      const a = Number(ip4[1]);
-      const b = Number(ip4[2]);
-      if (a === 0 || a === 10 || a === 127) return true;
-      if (a === 169 && b === 254) return true;
-      if (a === 172 && b >= 16 && b <= 31) return true;
-      if (a === 192 && b === 168) return true;
-    }
-    return false;
+    const u = new URL(rawUrl);
+    if (u.protocol !== 'https:' || u.username || u.password || u.port) return false;
+    const host = u.hostname.toLowerCase().replace(/\.$/, '');
+    return ALLOWED_MAP_HOSTS.some((allowed) => host === allowed || host.endsWith(`.${allowed}`));
   } catch {
-    return true;
+    return false;
   }
 }
 
-module.exports = async (req, res) => {
+function isPrivateAddress(address) {
+  if (net.isIPv4(address)) {
+    const [a, b] = address.split('.').map(Number);
+    return (
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      a >= 224
+    );
+  }
+  if (net.isIPv6(address)) {
+    const normalized = address.toLowerCase();
+    return (
+      normalized === '::' ||
+      normalized === '::1' ||
+      normalized.startsWith('fc') ||
+      normalized.startsWith('fd') ||
+      /^fe[89ab]/.test(normalized) ||
+      normalized.startsWith('::ffff:127.') ||
+      normalized.startsWith('::ffff:10.') ||
+      normalized.startsWith('::ffff:192.168.')
+    );
+  }
+  return true;
+}
+
+async function assertPublicMapTarget(rawUrl) {
+  if (!isAllowedMapUrl(rawUrl)) throw new Error('지원하지 않는 지도 링크예요.');
+  const host = new URL(rawUrl).hostname;
+  const addresses = await dns.lookup(host, { all: true, verbatim: true });
+  if (!addresses.length || addresses.some(({ address }) => isPrivateAddress(address))) {
+    throw new Error('안전하지 않은 지도 링크예요.');
+  }
+}
+
+function fetchWithTimeout(url, options = {}, timeoutMs = FETCH_TIMEOUT_MS) {
+  return fetch(url, {
+    ...options,
+    signal: options.signal || AbortSignal.timeout(timeoutMs),
+  });
+}
+
+function getSupabaseAuthConfig() {
+  const rawUrl = process.env.SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+  const publishableKey =
+    process.env.SUPABASE_PUBLISHABLE_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+  try {
+    const url = new URL(rawUrl);
+    const localHttp =
+      url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname);
+    if ((url.protocol !== 'https:' && !localHttp) || url.username || url.password) return null;
+    if (!publishableKey) return null;
+    return { baseUrl: url.toString().replace(/\/$/, ''), publishableKey };
+  } catch {
+    return null;
+  }
+}
+
+async function verifySupabaseUser(req) {
+  const authorization = String(req.headers.authorization || '');
+  const match = authorization.match(/^Bearer\s+([^\s]+)$/i);
+  if (!match) return { status: 'unauthorized' };
+
+  const config = getSupabaseAuthConfig();
+  if (!config) return { status: 'unavailable' };
+  try {
+    const response = await fetchWithTimeout(
+      `${config.baseUrl}/auth/v1/user`,
+      {
+        headers: {
+          apikey: config.publishableKey,
+          Authorization: `Bearer ${match[1]}`,
+        },
+      },
+      AUTH_TIMEOUT_MS,
+    );
+    if (!response.ok) return { status: 'unauthorized' };
+    const user = await response.json().catch(() => null);
+    if (!user || typeof user.id !== 'string' || !user.id) return { status: 'unauthorized' };
+    return { status: 'authenticated', userId: user.id };
+  } catch {
+    return { status: 'unavailable' };
+  }
+}
+
+async function handleRequest(req, res, verifyUser = verifySupabaseUser) {
+  res.setHeader('Cache-Control', 'no-store');
   const origin = String(req.headers.origin || '');
   if (!isAllowedOrigin(origin)) {
     return res.status(403).json({ error: '허용되지 않은 출처의 요청이에요.' });
@@ -90,29 +180,57 @@ module.exports = async (req, res) => {
     res.setHeader('Vary', 'Origin');
   }
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST 요청만 지원해요.' });
 
-  const ip =
-    String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
-    (req.socket && req.socket.remoteAddress) ||
-    'unknown';
-  if (isRateLimited(ip)) {
+  const contentType = String(req.headers['content-type'] || '').toLowerCase();
+  if (!contentType.startsWith('application/json')) {
+    return res.status(415).json({ error: 'JSON 요청만 지원해요.' });
+  }
+  const declaredLength = Number(req.headers['content-length'] || 0);
+  if (Number.isFinite(declaredLength) && declaredLength > 10_000) {
+    return res.status(413).json({ error: '요청 데이터가 너무 커요.' });
+  }
+
+  const auth = await verifyUser(req);
+  if (auth.status === 'unavailable') {
+    return res.status(503).json({ error: '인증 서비스를 일시적으로 사용할 수 없어요.' });
+  }
+  if (auth.status !== 'authenticated') {
+    res.setHeader('WWW-Authenticate', 'Bearer');
+    return res.status(401).json({ error: '로그인이 필요한 요청이에요.' });
+  }
+
+  if (isRateLimited(auth.userId)) {
     res.setHeader('Retry-After', '60');
     return res.status(429).json({ error: '요청이 너무 잦아요. 잠시 후 다시 시도해주세요.' });
   }
 
   try {
-    const body =
-      typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-    const url = String(body.url || '').trim();
-    if (!/^https?:\/\//i.test(url) || url.length > 2000) {
-      return res.status(400).json({ error: '유효한 지도 링크를 붙여넣어 주세요.' });
+    let body = req.body || {};
+    if (typeof body === 'string') {
+      if (body.length > 10_000) {
+        return res.status(413).json({ error: '요청 데이터가 너무 커요.' });
+      }
+      try {
+        body = JSON.parse(body || '{}');
+      } catch {
+        return res.status(400).json({ error: '요청 형식이 올바르지 않아요.' });
+      }
+    } else {
+      try {
+        if (JSON.stringify(body).length > 10_000) {
+          return res.status(413).json({ error: '요청 데이터가 너무 커요.' });
+        }
+      } catch {
+        return res.status(400).json({ error: '요청 형식이 올바르지 않아요.' });
+      }
     }
-    if (isPrivateTarget(url)) {
-      return res.status(400).json({ error: '지원하지 않는 링크예요.' });
+    const url = String(body.url || '').trim();
+    if (url.length > 2000 || !isAllowedMapUrl(url)) {
+      return res.status(400).json({ error: '유효한 지도 링크를 붙여넣어 주세요.' });
     }
 
     // 1) 링크 열기 (단축링크 리다이렉트 추적) — 최종 URL 확보용
@@ -203,20 +321,41 @@ module.exports = async (req, res) => {
       ai: Boolean(structured),
     });
   } catch (e) {
-    return res
-      .status(500)
-      .json({ error: (e && e.message) || '자동 인식에 실패했어요. 직접 입력해주세요.' });
+    console.warn('[extract-place] 요청 처리 실패:', e && e.message);
+    return res.status(502).json({ error: '자동 인식에 실패했어요. 직접 입력해주세요.' });
   }
-};
+}
+
+function createHandler({ verifyUser = verifySupabaseUser } = {}) {
+  return (req, res) => handleRequest(req, res, verifyUser);
+}
 
 // ── 공통 ─────────────────────────────────────────────────────────────────────
 
 async function fetchPage(url) {
-  const r = await fetch(url, {
-    redirect: 'follow',
-    headers: { 'User-Agent': UA, 'Accept-Language': 'ko-KR,ko;q=0.9' },
-  });
-  return { finalUrl: r.url || url, html: await r.text() };
+  let currentUrl = url;
+  for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
+    await assertPublicMapTarget(currentUrl);
+    const r = await fetchWithTimeout(currentUrl, {
+      redirect: 'manual',
+      headers: { 'User-Agent': UA, 'Accept-Language': 'ko-KR,ko;q=0.9' },
+    });
+
+    if (r.status >= 300 && r.status < 400) {
+      const location = r.headers.get('location');
+      if (!location) throw new Error('지도 링크의 이동 주소가 올바르지 않아요.');
+      currentUrl = new URL(location, currentUrl).toString();
+      continue;
+    }
+    if (!r.ok) throw new Error(`지도 페이지 응답 오류 (${r.status})`);
+
+    const declaredSize = Number(r.headers.get('content-length') || 0);
+    if (declaredSize > MAX_PAGE_BYTES) throw new Error('지도 페이지가 너무 커서 처리할 수 없어요.');
+    const buffer = await r.arrayBuffer();
+    if (buffer.byteLength > MAX_PAGE_BYTES) throw new Error('지도 페이지가 너무 커서 처리할 수 없어요.');
+    return { finalUrl: currentUrl, html: new TextDecoder().decode(buffer) };
+  }
+  throw new Error('지도 링크의 이동 횟수가 너무 많아요.');
 }
 
 function detectSource(finalUrl, original) {
@@ -315,7 +454,7 @@ function extractMenus(html) {
 async function enrichFromNaver(name, address) {
   const region = clean(String(address || '').split(/\s+/).slice(0, 2).join(' '));
   const q = encodeURIComponent(clean(`${name} ${region}`));
-  const r = await fetch(`https://pcmap.place.naver.com/restaurant/list?query=${q}`, {
+  const r = await fetchWithTimeout(`https://pcmap.place.naver.com/restaurant/list?query=${q}`, {
     headers: {
       'User-Agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
@@ -436,7 +575,7 @@ async function reverseGeocode(lat, lon) {
     const wait = 1000 - (Date.now() - lastGeoCallAt);
     if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
     lastGeoCallAt = Date.now();
-    const r = await fetch(
+    const r = await fetchWithTimeout(
       `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ko`,
       { headers: { 'User-Agent': 'matdam-app/1.0 (https://matdam-official.vercel.app)' } }
     );
@@ -558,7 +697,7 @@ async function callClaude(apiKey, meta, finalUrl) {
     },
   };
 
-  const anthRes = await fetch('https://api.anthropic.com/v1/messages', {
+  const anthRes = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -592,3 +731,7 @@ async function callClaude(apiKey, meta, finalUrl) {
   if (!block) throw new Error('Claude 응답에 tool_use 없음');
   return block.input;
 }
+
+const handler = createHandler();
+handler._test = { createHandler, getSupabaseAuthConfig, isAllowedMapUrl, isPrivateAddress };
+module.exports = handler;

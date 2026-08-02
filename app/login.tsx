@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BrandIcon from '@/components/BrandIcon';
 import { useAuth } from '@/context/AuthContext';
+import { getPasswordValidationError } from '@/lib/password';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -68,9 +69,12 @@ export default function LoginScreen() {
       setFormError('아이디는 영문, 숫자, 마침표, 밑줄, 하이픈만 사용할 수 있어요.');
       return;
     }
-    if (mode === 'signup' && password.length < 6) {
-      setFormError('비밀번호는 6자 이상 입력해주세요.');
-      return;
+    if (mode === 'signup') {
+      const passwordError = getPasswordValidationError(password);
+      if (passwordError) {
+        setFormError(passwordError);
+        return;
+      }
     }
     setLoading(true);
     try {
@@ -90,7 +94,7 @@ export default function LoginScreen() {
       } else if (msg.includes('User already registered')) {
         setFormError('이미 사용 중인 아이디예요. 로그인하거나 다른 아이디를 입력해주세요.');
       } else if (msg.includes('Password should be')) {
-        setFormError('비밀번호는 6자 이상 입력해주세요.');
+        setFormError('비밀번호는 8자 이상이며 영문과 숫자를 포함해야 해요.');
       } else {
         setFormError('요청을 처리하지 못했어요. 인터넷 연결을 확인하고 다시 시도해주세요.');
       }
@@ -172,7 +176,7 @@ export default function LoginScreen() {
                   setFormError('');
                   setFormSuccess('');
                 }}
-                placeholder="비밀번호 (6자 이상)"
+                placeholder="비밀번호 (8자 이상, 영문+숫자)"
                 placeholderTextColor="#bbb"
                 secureTextEntry={!showPassword}
                 returnKeyType="done"

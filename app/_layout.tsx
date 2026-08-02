@@ -7,6 +7,7 @@ import BottomTabBar from '@/components/BottomTabBar';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { RestaurantProvider } from '@/context/RestaurantContext';
 import { initAnalytics } from '@/lib/analytics';
+import { observePushNavigation } from '@/lib/push';
 import { initErrorLogging } from '@/lib/sentry';
 
 // 에러 로깅·사용 분석은 앱 코드가 실행되기 전에 가장 먼저 켠다 (키 미설정 시 no-op)
@@ -41,6 +42,25 @@ function RootNavigator() {
       router.replace('/' as any);
     }
   }, [user, loading, segments]);
+
+  // 로그인된 네이티브 앱에서 알림을 누르면 서버가 지정한 안전한 내부 화면으로 이동한다.
+  useEffect(() => {
+    if (loading || !user || Platform.OS === 'web') return;
+    let disposed = false;
+    let stop = () => {};
+
+    observePushNavigation((route) => router.push(route as any))
+      .then((cleanup) => {
+        if (disposed) cleanup();
+        else stop = cleanup;
+      })
+      .catch((error) => console.warn('[Push] 알림 이동 초기화 실패:', error?.message ?? error));
+
+    return () => {
+      disposed = true;
+      stop();
+    };
+  }, [user?.id, loading, router]);
 
   if (loading) {
     return (

@@ -135,20 +135,28 @@ React Native(Expo)로 만든 **개인별 맛집 리스트 공유 앱**입니다.
 ## 🚀 설치 및 실행
 
 ### 사전 요구사항
-- Node.js 18 이상
+- Node.js 22 이상 25 미만 (EAS 빌드는 22.14.0 고정)
 - Supabase 프로젝트 (무료 플랜 가능)
 - [Expo Go](https://expo.dev/go) 앱 (모바일 실행 시)
 
 ### 1) 의존성 설치
 ```bash
-npm install
+npm ci
 ```
+
+설치 스크립트는 `package.json`의 `allowScripts` 정책으로 제한합니다. 현재 체크섬 검증을 수행하는
+`@sentry/cli@2.58.4`만 허용하고, 기능과 무관한 `core-js` 후원 안내 스크립트는 실행하지 않습니다.
+의존성 버전 변경 후 `npm approve-scripts --allow-scripts-pending` 결과를 반드시 검토하세요.
 
 ### 2) 환경 변수 설정
 프로젝트 루트에 `.env` 파일 생성:
 ```
 EXPO_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=<your-anon-or-publishable-key>
+# 네이티브 앱이 호출할 Vercel 함수의 기준 주소(네이티브 빌드 필수)
+EXPO_PUBLIC_API_BASE=https://<your-domain>
+# 비밀번호 재설정 메일이 돌아올 웹 주소
+EXPO_PUBLIC_SITE_URL=https://<your-domain>
 ```
 
 **지도 링크 자동 채우기(선택)** — 서버리스 함수 `api/extract-place.js` 가 사용합니다.
@@ -158,11 +166,18 @@ ANTHROPIC_API_KEY=<your-anthropic-key>
 ```
 - 키가 **있으면**: Claude(Haiku)가 이름·주소·카테고리·사진을 정확히 구조화
 - 키가 **없으면**: og태그만으로 이름·사진 위주로 채우는 fallback 동작 (여전히 작동)
-- 네이티브 앱에서 호출할 함수 주소를 바꾸려면 `EXPO_PUBLIC_API_BASE` 로 지정 (기본값: 프로덕션 URL)
+- 네이티브 앱은 `EXPO_PUBLIC_API_BASE`가 필수입니다. 환경별 EAS 변수에 명시적으로 등록하세요.
+- 장소 추출 API는 로그인 세션 JWT를 Supabase Auth에서 검증한 요청만 처리합니다. Vercel에도
+  `EXPO_PUBLIC_SUPABASE_URL`과 `EXPO_PUBLIC_SUPABASE_ANON_KEY`가 필요합니다.
+- 네이티브 비밀번호 재설정을 사용하려면 Supabase Auth의 Redirect URLs에 `matdam://**`도 등록하세요.
 
 ### 3) Supabase 스키마 준비
-Supabase 대시보드 → **SQL Editor** 에서 `supabase/migration.sql` 전체를 실행합니다.
-(테이블: `seoul_restaurants`, `profiles`, `restaurant_reviews`, `app_feedback`)
+현재 `supabase/migration*.sql`은 기존 운영 DB에 순차 적용해 온 레거시 마이그레이션입니다.
+기본 `seoul_restaurants` 생성 SQL이 저장소에 없어 새 프로젝트를 처음부터 구성하는 용도로는
+완전하지 않습니다. 표준 CLI 구성과 신규 마이그레이션은 `supabase/config.toml` 및
+`supabase/migrations/`에서 관리하지만, 운영 DB를 pull해 기준선을 확정하기 전에는 새 프로젝트에
+레거시 파일이나 신규 마이그레이션 일부만 임의 실행하지 마세요. 자세한 절차는
+`docs/SUPABASE-MIGRATIONS.md`를 참고하세요.
 
 또한 **Authentication → Sign In / Providers → Confirm email** 을 **OFF** 로 설정하면
 이메일 인증 없이 바로 가입/로그인할 수 있습니다.
@@ -174,6 +189,24 @@ npm run web      # 웹 브라우저
 npm run android  # Android 에뮬레이터
 npm run ios      # iOS 시뮬레이터 (macOS)
 ```
+
+### 5) 검사
+
+```bash
+npm run check
+```
+
+타입·보안·구성·웹 번들 검사 후 Chrome에서 랜딩과 공개 비밀번호 찾기 라우트를 실제 렌더링합니다.
+계정을 생성하는 전체 스모크 테스트는 대상과 변경 권한을 명시한 경우에만 실행합니다.
+
+```bash
+ALLOW_SMOKE_ACCOUNT_MUTATION=1 \
+EXPO_PUBLIC_SUPABASE_URL=<target-url> \
+EXPO_PUBLIC_SUPABASE_ANON_KEY=<target-publishable-key> \
+node scripts/web-smoke.js http://localhost:8099
+```
+
+운영 주소는 기본값으로 사용되지 않으며, 중간 실패 시에도 생성된 테스트 계정 삭제를 시도합니다.
 
 ---
 
@@ -251,10 +284,22 @@ node scripts/backfill-photos.mjs 10     # 앞 10곳만 테스트
 `vercel.json` 설정으로 자동 빌드됩니다.
 ```json
 {
-  "buildCommand": "npx expo export --platform web",
-  "outputDirectory": "dist",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "buildCommand": "npm run build:web",
+  "outputDirectory": "dist"
 }
 ```
 GitHub `main` 브랜치에 push하면 Vercel이 자동 배포합니다.
 환경 변수(`EXPO_PUBLIC_*`)는 빌드 시점에 주입되므로 Vercel 프로젝트 설정에 등록해야 합니다.
+
+로컬에서 Preview 산출물을 만들고 배포할 때는 Preview 환경 변수를 빌드 하위 프로세스에 명시적으로 주입합니다.
+
+```bash
+npx vercel pull --yes --environment preview
+npx vercel env run -e preview -- vercel build --target preview
+npm run test:web-runtime -- .vercel/output/static
+npx vercel deploy --prebuilt
+```
+
+Production 배포는 별도 승인 없이 `--prod`를 추가하지 않습니다. Windows의 클라우드 동기화 폴더에서 소스가
+ReparsePoint(온라인 전용 파일)로 바뀌면 Metro가 라우트를 누락할 수 있으므로 저장소는 로컬 일반 파일 상태로
+유지합니다. `npm run build:web`의 웹 라우트 번들 검사가 빈 앱 번들의 배포를 차단합니다.

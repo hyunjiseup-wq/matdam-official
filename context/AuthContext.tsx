@@ -1,8 +1,11 @@
 import { Session, User } from '@supabase/supabase-js';
+import * as Linking from 'expo-linking';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import { emailFromId, isAdminEmail } from '@/lib/admin';
 import { identifyUser, resetAnalytics, track } from '@/lib/analytics';
 import { assertClean } from '@/lib/moderation';
+import { assertValidPassword } from '@/lib/password';
 import { registerPushToken, unregisterPushToken } from '@/lib/push';
 import { supabase } from '@/lib/supabase';
 
@@ -21,7 +24,26 @@ interface AuthContextType {
   requestPasswordReset: (email: string) => Promise<void>;
 }
 
-const SITE_URL = 'https://matdam-official.vercel.app';
+const SITE_URL = (
+  process.env.EXPO_PUBLIC_SITE_URL?.trim() || 'https://matdam-official.vercel.app'
+).replace(/\/$/, '');
+
+async function restoreRecoverySessionFromUrl(url: string | null): Promise<boolean> {
+  if (!url) return false;
+  const parsed = new URL(url);
+  const fragment = new URLSearchParams(parsed.hash.replace(/^#/, ''));
+  const type = fragment.get('type') ?? parsed.searchParams.get('type');
+  const accessToken = fragment.get('access_token') ?? parsed.searchParams.get('access_token');
+  const refreshToken = fragment.get('refresh_token') ?? parsed.searchParams.get('refresh_token');
+  if (type !== 'recovery' || !accessToken || !refreshToken) return false;
+
+  const { error } = await supabase.auth.setSession({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  });
+  if (error) throw error;
+  return true;
+}
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -30,14 +52,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
+    let active = true;
+    const handleNativeUrl = async (url: string | null) => {
+      if (Platform.OS === 'web') return;
+      try {
+        await restoreRecoverySessionFromUrl(url);
+      } catch (error: any) {
+        console.warn('[Auth] 복구 링크 처리 실패:', error?.message ?? error);
+      }
+    };
+
+    const linkSubscription =
+      Platform.OS === 'web'
+        ? null
+        : Linking.addEventListener('url', ({ url }) => void handleNativeUrl(url));
+
+    (async () => {
+      if (Platform.OS !== 'web') await handleNativeUrl(await Linking.getInitialURL());
+      const { data } = await supabase.auth.getSession();
+      if (active) setSession(data.session);
+    })()
+      .catch((error) => console.warn('[Auth] 세션 초기화 실패:', error?.message ?? error))
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, sess) => {
       setSession(sess);
     });
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      linkSubscription?.remove();
+      subscription.unsubscribe();
+    };
   }, []);
 
   const user = session?.user ?? null;
@@ -83,6 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = useCallback(async (id: string, password: string, name: string) => {
     assertClean(name, '닉네임');
     assertClean(id, '아이디');
+    assertValidPassword(password);
     const { error } = await supabase.auth.signUp({
       email: emailFromId(id),
       password,
@@ -95,7 +143,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     await unregisterPushToken();
     resetAnalytics();
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
+    if (error) throw new Error(error.message);
   }, []);
 
   // 실제 이메일 등록/변경 — 인증 메일의 링크를 눌러야 반영된다.
@@ -110,14 +159,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // 로그인 상태에서 비밀번호 변경 (재설정 링크로 들어온 복구 세션에서도 사용)
   const changePassword = useCallback(async (newPassword: string) => {
+    assertValidPassword(newPassword);
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) throw new Error(error.message);
   }, []);
 
   // 비밀번호 재설정 메일 요청 — 등록된 이메일로만 발송된다.
   const requestPasswordReset = useCallback(async (email: string) => {
+    const redirectTo =
+      Platform.OS === 'web' ? `${SITE_URL}/reset-password` : Linking.createURL('reset-password');
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: `${SITE_URL}/reset-password`,
+      redirectTo,
     });
     if (error) throw new Error(error.message);
   }, []);

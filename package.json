@@ -15,7 +15,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/api-security-test.js && node scripts/supabase-security-test.js && node scripts/config-test.js",
+    "test": "node scripts/api-security-test.js && node scripts/supabase-security-test.js && node scripts/dependency-audit-test.js && node scripts/config-test.js",
+    "audit:ci": "node scripts/dependency-audit.js",
     "test:web-runtime": "node scripts/web-runtime-test.js",
     "build:web": "expo export --platform web --clear && node scripts/inject-og.js && node scripts/web-bundle-test.js",
     "check": "npm run typecheck && npm test && npm run build:web && npm run test:web-runtime"

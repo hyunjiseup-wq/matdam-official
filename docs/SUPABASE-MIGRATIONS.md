@@ -13,13 +13,16 @@
 2. 원격 `supabase_migrations.schema_migrations` 이력과 레거시 파일의 실제 적용 상태를 비교한다.
 3. 운영 스키마를 pull해 기준선 마이그레이션을 만든다.
 4. Security Advisor와 RLS·함수 실행 권한을 확인한다.
-5. `profile_view_rate_limit` 마이그레이션을 스테이징에서 먼저 적용한다.
+5. `profile_view_rate_limit`, `harden_rls_and_function_permissions` 마이그레이션을 순서대로
+   스테이징에서 먼저 적용한다.
 6. 같은 사용자가 같은 프로필을 하루에 반복 조회해도 1회만 증가하고, 동시 호출도 중복
    집계되지 않는지 확인한다.
 7. `profile_view_events`가 사용자-프로필 쌍당 1행만 유지되고 프로필 삭제 CASCADE가
    `profile_view_events_profile_id_idx`를 사용하는지 확인한다.
 8. Data API에 필요한 기존 테이블의 `anon`/`authenticated` 권한을 원격 DB에서 명시적으로
    점검한다. 2026년 5월 이후 생성 프로젝트는 새 테이블을 Data API에 자동 노출하지 않는다.
+9. 마이그레이션 적용 후 Security/Performance Advisor를 다시 실행해 트리거 함수 직접 실행,
+   미인덱스 FK, RLS initPlan, 중복 permissive 정책 경고가 제거됐는지 확인한다.
 
 운영 이력을 확인하기 전에 레거시 SQL의 이름을 바꾸거나 `supabase/migrations/`로 단순 복사하면
 이미 적용된 SQL이 다시 실행될 수 있으므로 금지합니다.
@@ -38,4 +41,10 @@
   `authenticated`에만 실행 권한 부여
 - 날짜별 이벤트 누적 대신 사용자-프로필 쌍을 원자적 UPSERT해 행 증가를 제한하고 동시 중복 집계 방지
 - 복합 기본키가 커버하지 못하는 `profile_id` 외래 키 경로에 별도 인덱스 추가
+- 운영 Advisor에서 모든 `public` 테이블의 RLS 활성화 확인(2026-08-02)
+- 트리거 전용 SECURITY DEFINER 함수 2개의 직접 RPC 실행 권한 회수
+- `seoul_restaurants.source_owner_id` 외래 키 인덱스 추가
+- RLS의 `auth.uid()`·관리자 확인 함수를 요청당 한 번 평가하도록 initPlan 패턴 적용
+- 컬렉션의 중복 `FOR ALL` 정책을 INSERT/UPDATE/DELETE 정책으로 분리
+- `reports` 관리자 UPDATE 정책에 누락된 `WITH CHECK` 추가
 - 실제 SQL 파싱·쿼리 플랜·동시성 검증은 로컬 Docker 또는 연결된 스테이징 DB가 있어야 완료 가능

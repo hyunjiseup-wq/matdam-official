@@ -15,8 +15,14 @@ const allowedReport = {
   },
   metadata: { vulnerabilities: { high: 2, critical: 0 } },
 };
-assert.equal(evaluateAudit(allowedReport).ok, true);
-assert.equal(evaluateAudit(allowedReport).allowed.length, 1);
+const beforeExpiry = new Date('2026-08-10T00:00:00Z');
+assert.equal(evaluateAudit(allowedReport, beforeExpiry).ok, true);
+assert.equal(evaluateAudit(allowedReport, beforeExpiry).allowed.length, 1);
+assert.equal(evaluateAudit(allowedReport, beforeExpiry).allowed[0].expiresOn, '2026-09-30');
+
+const afterExpiry = new Date('2026-10-01T00:00:00Z');
+assert.equal(evaluateAudit(allowedReport, afterExpiry).ok, false);
+assert.match(evaluateAudit(allowedReport, afterExpiry).failures[0].reason, /expired/);
 
 const newHighAdvisory = {
   vulnerabilities: {

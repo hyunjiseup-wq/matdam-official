@@ -6,6 +6,7 @@ const TEMPORARY_EXCEPTIONS = new Map([
     'https://github.com/advisories/GHSA-w3rx-r6r6-pgpr',
     {
       dependency: 'image-size',
+      expiresOn: '2026-09-30',
       reason: 'Metro build-time ICNS parser; no compatible patched release is available.',
     },
   ],
@@ -13,6 +14,7 @@ const TEMPORARY_EXCEPTIONS = new Map([
     'https://github.com/advisories/GHSA-5p2g-fcmc-qvqq',
     {
       dependency: 'image-size',
+      expiresOn: '2026-09-30',
       reason: 'Metro build-time JXL/HEIF parser; no compatible patched release is available.',
     },
   ],
@@ -57,7 +59,7 @@ function unique(items, keyOf) {
   });
 }
 
-function evaluateAudit(report) {
+function evaluateAudit(report, now = new Date()) {
   const vulnerabilities = report?.vulnerabilities || {};
   const blockingEntries = Object.entries(vulnerabilities).filter(([, vulnerability]) =>
     BLOCKING_SEVERITIES.has(vulnerability.severity),
@@ -83,14 +85,24 @@ function evaluateAudit(report) {
 
     for (const root of blockingRoots) {
       const exception = root.url ? TEMPORARY_EXCEPTIONS.get(root.url) : null;
-      if (exception && exception.dependency === root.dependency) {
-        allowed.push({ ...root, reason: exception.reason });
+      const matchesException = exception && exception.dependency === root.dependency;
+      const expiresAt = matchesException
+        ? Date.parse(`${exception.expiresOn}T23:59:59.999Z`)
+        : Number.NaN;
+      if (matchesException && now.getTime() <= expiresAt) {
+        allowed.push({
+          ...root,
+          expiresOn: exception.expiresOn,
+          reason: exception.reason,
+        });
       } else {
         failures.push({
           ...root,
-          reason: root.unresolved
-            ? 'Blocking vulnerability root could not be resolved.'
-            : 'High/critical advisory is not allowlisted.',
+          reason: matchesException
+            ? `Temporary exception expired on ${exception.expiresOn}.`
+            : root.unresolved
+              ? 'Blocking vulnerability root could not be resolved.'
+              : 'High/critical advisory is not allowlisted.',
         });
       }
     }
@@ -139,7 +151,7 @@ function run() {
   const evaluation = evaluateAudit(report);
   for (const exception of evaluation.allowed) {
     console.warn(
-      `[dependency-audit] 임시 예외: ${exception.dependency} ${exception.url} — ${exception.reason}`,
+      `[dependency-audit] 임시 예외(~${exception.expiresOn}): ${exception.dependency} ${exception.url} — ${exception.reason}`,
     );
   }
 

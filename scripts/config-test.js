@@ -45,6 +45,10 @@ for (const workflow of workflowSources) {
   }
 }
 assert.match(workflowSources[0], /persist-credentials:\s*false/);
+assert.match(workflowSources[0], /schedule:/);
+assert.match(workflowSources[0], /cron: '0 0 \* \* 1'/);
+assert.match(workflowSources[0], /workflow_dispatch:/);
+assert.match(workflowSources[0], /npm run audit:ci/);
 assert.equal(pkg.dependencies['@supabase/supabase-js'], '2.110.0');
 assert.equal(pkg.allowScripts['@sentry/cli@2.58.4'], true);
 assert.equal(pkg.allowScripts['core-js'], false);
@@ -53,6 +57,7 @@ assert.equal(pkg.engines.node, '>=22 <25');
 assert.ok(pkg.scripts.check.includes('typecheck'));
 assert.ok(pkg.scripts.check.includes('build:web'));
 assert.ok(pkg.scripts.check.includes('test:web-runtime'));
+assert.equal(pkg.scripts['audit:ci'], 'node scripts/dependency-audit.js');
 assert.match(pkg.scripts['build:web'], /--clear/);
 assert.match(pkg.scripts['build:web'], /web-bundle-test/);
 const webRuntimeSource = fs.readFileSync(path.join(root, 'scripts', 'web-runtime-test.js'), 'utf8');

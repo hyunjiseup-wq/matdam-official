@@ -36,7 +36,7 @@ export default function UserListScreen() {
   const { user } = useAuth();
   const {
     getUserRestaurants,
-    getUsers,
+    getProfile,
     copyRestaurant,
     likeList,
     unlikeList,
@@ -65,15 +65,15 @@ export default function UserListScreen() {
     setLoading(true);
     setLoadError(false);
     try {
-      const [list, users] = await Promise.all([getUserRestaurants(id), getUsers()]);
+      const [list, profile] = await Promise.all([getUserRestaurants(id), getProfile(id)]);
       setItems(list);
-      setOwner(users.find((u) => u.id === id) ?? null);
+      setOwner(profile);
     } catch {
       setLoadError(true);
     } finally {
       setLoading(false);
     }
-  }, [id, getUserRestaurants, getUsers]);
+  }, [id, getUserRestaurants, getProfile]);
 
   useEffect(() => {
     load();

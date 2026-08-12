@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -16,29 +16,66 @@ import LoadErrorState from '@/components/LoadErrorState';
 import { notify } from '@/lib/confirm';
 import { openExternalLink } from '@/lib/externalLink';
 import { useAuth } from '@/context/AuthContext';
-import { useRestaurants } from '@/context/RestaurantContext';
+import { useRestaurants, type UserDirectoryCursor } from '@/context/RestaurantContext';
 import { Profile } from '@/types/restaurant';
 
 export default function ExploreScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { getUsers, likeList, unlikeList } = useRestaurants();
+  const { getUsersPage, likeList, unlikeList } = useRestaurants();
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [nextCursor, setNextCursor] = useState<UserDirectoryCursor | null>(null);
   const [pendingLikes, setPendingLikes] = useState<Set<string>>(() => new Set());
+  const loadingMoreRef = useRef(false);
+  const loadGenerationRef = useRef(0);
 
   const load = useCallback(async () => {
+    const generation = loadGenerationRef.current + 1;
+    loadGenerationRef.current = generation;
+    loadingMoreRef.current = false;
     setLoading(true);
+    setLoadingMore(false);
     setLoadError(false);
+    setNextCursor(null);
     try {
-      setUsers(await getUsers());
+      const page = await getUsersPage();
+      if (loadGenerationRef.current !== generation) return;
+      setUsers(page.items);
+      setNextCursor(page.nextCursor);
     } catch {
+      if (loadGenerationRef.current !== generation) return;
       setLoadError(true);
     } finally {
-      setLoading(false);
+      if (loadGenerationRef.current === generation) setLoading(false);
     }
-  }, [getUsers]);
+  }, [getUsersPage]);
+
+  const loadMore = useCallback(async () => {
+    if (!nextCursor || loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    const generation = loadGenerationRef.current;
+    try {
+      const page = await getUsersPage(nextCursor);
+      if (loadGenerationRef.current !== generation) return;
+      setUsers((current) => {
+        const existingIds = new Set(current.map((profile) => profile.id));
+        return [...current, ...page.items.filter((profile) => !existingIds.has(profile.id))];
+      });
+      setNextCursor(page.nextCursor);
+    } catch {
+      if (loadGenerationRef.current !== generation) return;
+      notify('추가 로드 실패', '사용자 목록을 더 불러오지 못했어요. 잠시 후 다시 시도해주세요.');
+    } finally {
+      if (loadGenerationRef.current === generation) {
+        loadingMoreRef.current = false;
+        setLoadingMore(false);
+      }
+    }
+  }, [getUsersPage, nextCursor]);
 
   useFocusEffect(
     useCallback(() => {
@@ -177,6 +214,11 @@ export default function ExploreScreen() {
             <Text style={styles.emptySub}>아직 사용자가 없어요</Text>
           </View>
         }
+        ListFooterComponent={
+          loadingMore ? <ActivityIndicator style={styles.footerLoader} color="#6C5CE7" /> : null
+        }
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.4}
         contentContainerStyle={styles.list}
       />
     </SafeAreaView>
@@ -226,4 +268,5 @@ const styles = StyleSheet.create({
   likeCount: { fontSize: 12, color: '#bbb', fontWeight: '600', marginTop: 1 },
   emptyBox: { alignItems: 'center', paddingTop: 60 },
   emptySub: { fontSize: 14, color: '#aaa' },
+  footerLoader: { marginVertical: 20 },
 });

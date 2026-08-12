@@ -1,6 +1,7 @@
 {
   "expo": {
     "name": "맛담",
+    "description": "지도 링크로 나만의 맛집 목록을 만들고 친구와 공유하는 서비스",
     "slug": "seoul-restaurant-list",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -51,7 +52,8 @@
       [
         "expo-notifications",
         {
-          "color": "#FF7A45"
+          "color": "#FF7A45",
+          "defaultChannel": "default"
         }
       ]
     ],

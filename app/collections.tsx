@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BrandIcon from '@/components/BrandIcon';
+import LoadErrorState from '@/components/LoadErrorState';
 import { confirmAction, notify } from '@/lib/confirm';
 import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
@@ -30,12 +31,15 @@ export default function CollectionsScreen() {
   const [newEmoji, setNewEmoji] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
     try {
       setCollections(await getCollections());
     } catch {
-      // 무시
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -48,6 +52,7 @@ export default function CollectionsScreen() {
   );
 
   async function handleCreate() {
+    if (saving) return;
     if (!newTitle.trim()) {
       notify('입력 오류', '컬렉션 이름을 입력해주세요.');
       return;
@@ -87,6 +92,14 @@ export default function CollectionsScreen() {
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#FF7A45" />
       </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <LoadErrorState onRetry={load} title="컬렉션을 불러오지 못했어요" />
+      </SafeAreaView>
     );
   }
 

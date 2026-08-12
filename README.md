@@ -1,260 +1,240 @@
-# 🍽️ 맛담
+# 맛담
 
-> 맛집을 담고, 친구와 나누는 공간 — 맛집을 '담다'
+지도 링크로 맛집을 저장하고 다른 사용자의 리스트를 둘러보며 내 리스트에 담을 수 있는 Expo 앱입니다. 웹, Android, iOS를 하나의 React Native 코드베이스로 운영합니다.
 
-React Native(Expo)로 만든 **개인별 맛집 리스트 공유 앱**입니다.
-인플루언서/친구들이 각자 자기만의 맛집 리스트를 만들고, 서로의 리스트를 구경하며 맘에 드는 곳을 내 리스트로 담아올 수 있어요.
+- 웹 운영 주소: https://matdam-official.vercel.app
+- 웹 호스팅/API: Vercel
+- 데이터베이스·인증·사진 저장소: Supabase
+- 모바일 빌드: Expo Application Services(EAS)
 
-데이터는 **Supabase**(PostgreSQL)에 저장되고, 웹은 **Vercel**로 배포됩니다.
+## 현재 기술 구성
 
-🔗 **데모:** https://matdam-official.vercel.app
-
----
-
-## 🎨 브랜드
-
-- **이름:** 맛담 (맛집을 *담다* — 핵심 기능 '담기'와 연결)
-- **슬로건:** 맛집을 담고, 친구와 나누는 공간
-- **컬러:** 메인 `#FF7A45` (탠저린 오렌지) · 포인트 `#6C5CE7` (퍼플) · 보조 `#00B894` (그린)
-
----
-
-## ✨ 주요 기능
-
-### 화면 / 내비게이션
-| 기능 | 설명 |
+| 영역 | 현재 구성 |
 |---|---|
-| 📱 하단 탭바 | **홈 · 전체 맛집 · ➕추가 · 둘러보기 · 마이** 한 손에 (가운데 ➕로 맛집 추가) |
-| 📖 앱 사용법 가이드 | 마이 화면에서 진입하는 **기능별 사용 설명** 화면 |
-| 🆕 첫 로그인 가이드 | 처음 로그인 시 가이드를 **1회 자동 노출** (사용자별 기록, 빈 홈에서도 "사용법 보기" 진입) |
+| 앱 | Expo SDK 56, React Native 0.85, React 19, TypeScript 6 |
+| 라우팅 | Expo Router 56 |
+| 백엔드 | Supabase PostgreSQL, Auth, Storage, RLS/RPC |
+| 웹 | Expo Metro 정적 export + Vercel Function |
+| 지도 | 웹 Leaflet/OpenStreetMap, 네이티브 react-native-maps |
+| 관측 | Sentry·PostHog 선택 활성화 |
+| CI | GitHub Actions: 타입·회귀·웹 빌드·런타임·의존성 감사 |
+| 백업 | 매주 암호화된 Supabase `public` 논리 덤프(설정된 경우) |
 
-### 계정 / 로그인
-| 기능 | 설명 |
-|---|---|
-| 🆔 아이디 로그인 | 개인 이메일 대신 **아이디 + 비밀번호**로 가입 (내부적으로 `아이디@도메인` 이메일로 변환) |
-| 👤 닉네임 & 로그아웃 | 가입 시 닉네임 설정, 헤더 왼쪽에 닉네임 + 로그아웃 |
-| 📷 프로필 사진 | 마이에서 **아바타 사진 직접 업로드** → 둘러보기·리스트·피드 전역에 노출 |
+지원 Node.js는 `>=22 <25`이며 EAS 빌드는 Node.js `22.14.0`으로 고정합니다.
 
-### 내 맛집 리스트
-| 기능 | 설명 |
-|---|---|
-| 📂 개인 리스트 | 사용자마다 자기만의 맛집 리스트 (추가·수정·삭제는 본인 것만) |
-| ❤️ 가고싶음 / ✅ 방문함 | 위시리스트와 방문 기록이 완전히 독립, 따로 체크 |
-| ✨ 지도 링크 자동 채우기 | **네이버·구글 지도 공유 링크**만 붙여넣으면 이름·주소·카테고리·사진을 자동 인식해 폼에 채움 → 사용자가 확인·수정 후 저장. 구글 링크도 **같은 가게를 네이버에서 찾아** 카테고리·사진·가격대·메뉴까지 보강 |
-| 🍽️ 메뉴 자동 저장 | 링크 자동 채우기 시 **메뉴명·가격·메뉴 사진**(최대 20개)을 함께 저장 → 상세 화면에 메뉴 리스트 표시 (6개 초과 시 더 보기) |
-| 📍 관심 지역 추천 | 프로필에 **관심 지역**(여행지·동네, 쉼표로 여러 곳) 설정 → 홈 상단에 그 지역 **추천 맛집 가로 피드** (전체 사용자 맛집 중 인기순, 내 리스트 제외) |
-| 📷 음식 사진 | **사진 직접 업로드**(Supabase Storage) 또는 URL → 썸네일 + 대표 이미지 |
-| 🖼️ 대표 사진 자동 연동 | 기존 등록 맛집 **300곳+에 구글 Places 실제 가게 사진** 자동 연동 (백필 스크립트) |
-| 💰 가격대 | **1인 기준 4단계**(만원 이하/1~2만원/2~4만원/4만원 이상) — 폼에서 선택 or **네이버 메뉴 가격으로 자동 추정**, 카드·상세·전체 맛집에 배지 표시 |
-| 🗺️ 지도 출처 | **네이버/구글 선택** → 카드·상세에 N/G 배지, 출처에 맞는 지도로 열기 |
-| 📍 지역 계층 필터 | **전체 → 시/도 → 구** 단계 선택 (전국 확장 대비, 주소 자동 파싱) |
-| 🔎 검색 & 필터 | 이름·지역·메모·주소 검색 / 카테고리·상태 필터 |
+## 주요 기능
 
-### 테마 컬렉션 (차별화)
-| 기능 | 설명 |
-|---|---|
-| 🧭 테마 컬렉션 | **"지방 소도시 보석집", "골목 노포"** 같은 큐레이션 컬렉션 — 홈 가로 카드 → 컬렉션 상세에서 바로 담기 |
-| 👑 컬렉션 관리 | 관리자가 컬렉션 생성(이모지·제목·소개) + 전체 맛집에서 검색해 추가/제거 |
+- 아이디와 비밀번호 기반 Supabase Auth 로그인, 비밀번호 재설정, 계정 삭제
+- 사용자별 맛집 추가·수정·삭제, 방문함·가고싶음 분리
+- 네이버·구글 지도 링크의 장소 정보 자동 추출
+- 사진, 가격대, 메뉴, 지도 출처, 위치 좌표 저장
+- 전체 맛집 피드, 지역·카테고리 필터, 가까운순 정렬, 지도 보기
+- 사용자 디렉터리 인기순 정렬 및 30명 단위 무한 스크롤(RPC 적용 시 키셋 방식)
+- 리스트 좋아요, 프로필 조회수, 리뷰, 다른 사용자 맛집 담기
+- 테마 컬렉션, 신고·차단, 관리자 신고/피드백 처리
+- 관심 지역 추천, 리스트 공유, 푸시 알림
 
-### 소셜 (둘러보기)
-| 기능 | 설명 |
-|---|---|
-| 🍽️ 전체 맛집 둘러보기 | 모든 사용자의 맛집을 **한 피드**로 통합, **큰 사진 카드** + **인기순·별점순·방문순·📍가까운순** 정렬 |
-| 🗺️ 맛집 지도 | 전체 맛집을 **지도에서 모아보기** (OpenStreetMap) — 카테고리색 마커, 팝업에서 바로 상세 이동, 내 위치 표시 |
-| 📍 전체 맛집 지역·카테고리 필터 | 전체 맛집 피드에 **시/도 → 구** 지역 탭 + **카테고리 칩** (데이터에 있는 것만 자동 등장) |
-| 🗂️ 사용자 리스트 필터 | 다른 사람 리스트에서도 **지역(시/도→구)·카테고리**로 골라보기 |
-| 👥 중복 TOP 3 | 같은 맛집(이름+지역)을 담은 사용자 수 표시 + **인기순 상위 3명** → 클릭 시 그 사람 리스트로 |
-| 🔖 담기(북마크) | 전체 맛집 카드에서 바로 내 리스트에 담기 |
-| 🔍 통합 검색 | 맛집명·지역과 **사용자**를 한 번에 검색 |
-| 📊 인플루언서 지표 | 프로필에 **"내 맛집을 N명이 담아감"** + 가장 많이 담긴 내 맛집 TOP 5 |
-| 👀 사용자 둘러보기 | 다른 사용자들의 리스트 구경 (**인기순 정렬**, 카드에 SNS 노출) |
-| 👍 좋아요 + 인기순 | 리스트에 좋아요 → **좋아요·조회수 많은 리스트가 상위로** |
-| 📥 내 리스트에 담기 | 남의 맛집을 내 리스트로 복사 (가고싶음으로 저장) |
-| ⭐ 리뷰 | 별점 + 후기 작성, 상세 화면에서 모두의 리뷰 확인 |
-| 👤 프로필 | 닉네임·**소개·SNS 링크** 편집 → 둘러보기/리스트 화면에 노출, 클릭 시 이동 |
-| 🔗 리스트 공유 | 공유 버튼 (웹: 링크 복사 / 모바일: 공유 시트) |
+사용자 디렉터리·프로필 요약·전체 맛집 피드는 클라이언트 전체 집계 대신 PostgreSQL RPC를 우선 사용합니다. 마이그레이션 미적용 환경에서는 기존 쿼리로 폴백합니다.
 
-### 소통 / 관리
-| 기능 | 설명 |
-|---|---|
-| 💬 피드백 | 유형별(일반·기능요청·버그·정보수정) 전송, **전송 완료 화면**으로 중복 방지 |
-| 🧵 피드백 답글 | 관리자 ↔ 작성자 **1:1 비공개 대화** (다른 사용자는 못 봄) |
-| 👑 관리자 모드 | 받은 피드백 모아보기 + 답글 + **처리완료/보관/삭제** + 리뷰 삭제, 공식 배지 |
+## 프로젝트 구조
 
-### 보안
-| 기능 | 설명 |
-|---|---|
-| 🔒 Row Level Security | 전 테이블 RLS 활성화 — **본인 데이터만 수정/삭제** 가능, 피드백은 작성자+관리자만 열람, 컬렉션 쓰기는 관리자만 (migration8·9) |
-| 🛡️ 권한 상승 차단 | `is_admin`/`view_count` 컬럼은 클라이언트가 못 씀 (컬럼 잠금 + SECURITY DEFINER RPC) |
-| 📦 스토리지 잠금 | 사진 업로드는 로그인 사용자가 **자기 폴더에만**, 익명 업로드·전체 목록 조회 차단 |
-
----
-
-## 🗂️ 프로젝트 구조
-
-```
-맛담/
-├── app/
-│   ├── _layout.tsx              # 루트 레이아웃 (인증 가드 + Provider)
-│   ├── login.tsx                # 로그인 / 회원가입 (아이디 기반)
-│   ├── index.tsx                # 내 맛집 리스트 (홈)
-│   ├── discover.tsx             # 전체 맛집 통합 피드 (인기·별점·방문순, 중복 TOP3, 통합검색)
-│   ├── explore.tsx              # 둘러보기 (사용자 목록, 인기순)
-│   ├── profile.tsx              # 내 프로필 편집 (사진·소개·SNS, 내 영향력, 가이드 진입)
-│   ├── guide.tsx                # 앱 사용법 가이드
-│   ├── form.tsx                 # 추가 / 수정 폼 (지도출처·사진업로드)
-│   ├── feedback.tsx             # 피드백 보내기
-│   ├── my-feedback.tsx          # 내가 보낸 피드백 / 답변
-│   ├── detail/[id].tsx          # 맛집 상세보기 (담기 / 리뷰)
-│   ├── user/[id].tsx            # 다른 사용자의 리스트 (좋아요·공유)
-│   ├── review/[id].tsx          # 리뷰 작성
-│   ├── feedback-thread/[id].tsx # 피드백 1:1 대화
-│   └── admin/feedback.tsx       # 관리자: 받은 피드백 관리
-├── components/                  # RestaurantCard / BottomTabBar / Avatar / SearchBar / FilterBar
-├── context/
-│   ├── AuthContext.tsx          # 인증 상태 + 관리자 판별
-│   └── RestaurantContext.tsx    # 맛집 / 리뷰 / 피드백 / 좋아요 / 프로필 로직
-├── lib/
-│   ├── supabase.ts              # Supabase 클라이언트
-│   ├── admin.ts                 # 관리자 식별 + 아이디→이메일 변환
-│   └── confirm.ts               # 웹 호환 확인/알림 헬퍼
-├── types/restaurant.ts          # 타입 정의
-├── constants/filters.ts         # 카테고리 / 색상 / 지역(시도·구) 추론
-├── supabase/
-│   ├── schema.sql               # 초기 스키마
-│   ├── migration.sql            # 개인 리스트 모델 마이그레이션
-│   ├── migration2.sql           # 지도출처·좋아요·프로필·피드백답글·Storage
-│   └── migration3.sql           # 프로필 사진(avatar_url)
-├── scripts/
-│   └── backfill-photos.mjs      # 대표 사진 백필 (구글 Places → Storage)
-└── seoul_restaurant_app_starter/restaurants_from_json.json  # 시드 데이터 (311곳)
+```text
+.
+├─ app/                       Expo Router 화면과 정책 페이지
+│  ├─ admin/                  신고·피드백 관리자 화면
+│  ├─ collection/             테마 컬렉션 상세
+│  ├─ detail/                 맛집 상세
+│  ├─ policy/                 이용약관·개인정보처리방침
+│  ├─ review/                 리뷰 작성
+│  └─ user/                   사용자별 맛집 목록
+├─ api/extract-place.js       인증된 지도 링크 추출 Vercel Function
+├─ components/                공용 카드·지도·필터·상태 컴포넌트
+├─ constants/                 카테고리·지역 추론 상수
+├─ context/                   Auth/Restaurant 상태와 Supabase 호출
+├─ lib/                       Supabase, 분석, 오류 수집, 위치, 이미지 유틸리티
+├─ scripts/                   회귀 검사·웹 스모크·의존성 감사·사진 백필
+├─ supabase/
+│  ├─ migrations/             신규 표준 타임스탬프 마이그레이션
+│  ├─ migration*.sql          운영 이력 보존용 레거시 SQL
+│  └─ config.toml             Supabase CLI 로컬 구성
+├─ .github/workflows/
+│  ├─ quality.yml             PR/main/주간 품질·보안 검사
+│  └─ db-backup.yml           주간 암호화 논리 백업
+├─ app.json / app.config.js   Expo 및 네이티브 지도 설정
+├─ eas.json                   개발·Preview·Production 모바일 빌드 프로필
+└─ vercel.json                웹 빌드, Function, 보안 헤더, SPA rewrite
 ```
 
----
+## 로컬 실행
 
-## 🚀 설치 및 실행
+### 1. 요구사항
 
-### 사전 요구사항
-- Node.js 18 이상
-- Supabase 프로젝트 (무료 플랜 가능)
-- [Expo Go](https://expo.dev/go) 앱 (모바일 실행 시)
+- Node.js 22~24
+- npm과 Chrome 또는 Chromium
+- 연결할 Supabase 프로젝트
+- 모바일 실기기 실행 시 Expo Go 또는 개발 빌드
 
-### 1) 의존성 설치
-```bash
-npm install
-```
-
-### 2) 환경 변수 설정
-프로젝트 루트에 `.env` 파일 생성:
-```
-EXPO_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=<your-anon-or-publishable-key>
-```
-
-**지도 링크 자동 채우기(선택)** — 서버리스 함수 `api/extract-place.js` 가 사용합니다.
-Vercel 대시보드 → **Settings → Environment Variables** 에 추가:
-```
-ANTHROPIC_API_KEY=<your-anthropic-key>
-```
-- 키가 **있으면**: Claude(Haiku)가 이름·주소·카테고리·사진을 정확히 구조화
-- 키가 **없으면**: og태그만으로 이름·사진 위주로 채우는 fallback 동작 (여전히 작동)
-- 네이티브 앱에서 호출할 함수 주소를 바꾸려면 `EXPO_PUBLIC_API_BASE` 로 지정 (기본값: 프로덕션 URL)
-
-### 3) Supabase 스키마 준비
-Supabase 대시보드 → **SQL Editor** 에서 `supabase/migration.sql` 전체를 실행합니다.
-(테이블: `seoul_restaurants`, `profiles`, `restaurant_reviews`, `app_feedback`)
-
-또한 **Authentication → Sign In / Providers → Confirm email** 을 **OFF** 로 설정하면
-이메일 인증 없이 바로 가입/로그인할 수 있습니다.
-
-### 4) 실행
-```bash
-npm start        # Expo 개발 서버 (QR 스캔)
-npm run web      # 웹 브라우저
-npm run android  # Android 에뮬레이터
-npm run ios      # iOS 시뮬레이터 (macOS)
-```
-
----
-
-## 🗃️ 데이터 모델
-
-```typescript
-interface Restaurant {
-  id: string;            // 고유 ID
-  owner_id: string;      // 소유자(사용자) ID
-  name: string;          // 식당 이름 (필수)
-  area?: string;         // 지역 (예: 성수, 홍대)
-  category?: string;     // 카테고리 (예: 한식, 카페)
-  address?: string;      // 주소
-  naver_map_url?: string;// 네이버 지도 URL
-  image_url?: string;    // 음식 사진 URL
-  tags?: string[];       // 태그 배열
-  memo?: string;         // 메모
-  visited: boolean;      // 방문 여부 (소유자 기준)
-  wishlist: boolean;     // 가고싶음 여부 (소유자 기준)
-  priority: number;      // 우선순위 1-5
-  created_at: string;
-  updated_at: string;
-}
-```
-
-주요 테이블
-- `seoul_restaurants` — 맛집 (소유자별)
-- `profiles` — 사용자 목록 (둘러보기용, `is_admin` 포함)
-- `restaurant_reviews` — 리뷰 (별점 1-5 + 후기)
-- `app_feedback` — 앱 피드백
-
----
-
-## 🌱 초기 데이터
-
-기존에 네이버 지도에 저장해 둔 맛집 목록을 `seoul_restaurant_app_starter/restaurants_from_json.json`(311곳)으로 받아 시드합니다.
-**관리자**가 처음 로그인할 때 테이블이 비어 있으면 자동으로 시드되고, 주인 없는 항목은 관리자 소유로 귀속됩니다.
-
-### 📸 대표 사진 백필
-
-사진이 없는 맛집(`image_url IS NULL`)에 **구글 Places(신규) API**로 실제 가게 사진을 한 번에 채웁니다.
-검색된 사진은 Supabase Storage(`restaurant-photos/google/<id>`)에 저장되고 `image_url`이 공개 URL로 업데이트됩니다.
+### 2. 설치
 
 ```bash
-# PowerShell — 값은 작은따옴표로 감싸기
-$env:SUPABASE_URL='https://<project>.supabase.co'
-$env:SUPABASE_SERVICE_ROLE_KEY='<service_role 키>'   # 1회용, 절대 커밋 금지
-$env:GOOGLE_API_KEY='<구글 Places API 키>'
-node scripts/backfill-photos.mjs        # 사진 없는 곳만 처리 (재실행 안전)
-node scripts/backfill-photos.mjs 10     # 앞 10곳만 테스트
+npm ci
 ```
 
-> 312곳 중 **303곳**에 실제 사진 적용 완료. 구글에 등록되지 않은 9곳만 미적용.
-> `image_url`이 비어 있는 항목만 대상이라 재실행해도 기존 사진을 덮어쓰지 않습니다.
-> ⚠️ `service_role` 키는 RLS를 우회하므로 **1회용 로컬 실행 전용**이며, 사용 후 재발급을 권장합니다.
+설치 스크립트는 `package.json`의 `allowScripts` 정책으로 제한합니다. 새 의존성을 추가하거나 버전을 변경하면 lockfile과 설치 스크립트 허용 범위를 함께 검토해야 합니다.
 
----
+### 3. 환경 변수
 
-## 🛠️ 기술 스택
+`.env.example`을 `.env.local`로 복사하고 실제 값을 입력합니다.
 
-| 항목 | 내용 |
-|---|---|
-| Framework | React Native (Expo SDK 51) |
-| Navigation | Expo Router (파일 기반 라우팅) |
-| 백엔드 / DB | Supabase (PostgreSQL + Auth) |
-| 인증 | Supabase Auth (아이디 기반) |
-| 상태 관리 | React Context API + useState/useMemo |
-| 배포 | Vercel (`expo export --platform web`) |
-| 언어 | TypeScript |
-
----
-
-## ☁️ 배포 (Vercel)
-
-`vercel.json` 설정으로 자동 빌드됩니다.
-```json
-{
-  "buildCommand": "npx expo export --platform web",
-  "outputDirectory": "dist",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
-}
+```powershell
+Copy-Item .env.example .env.local
 ```
-GitHub `main` 브랜치에 push하면 Vercel이 자동 배포합니다.
-환경 변수(`EXPO_PUBLIC_*`)는 빌드 시점에 주입되므로 Vercel 프로젝트 설정에 등록해야 합니다.
+
+클라이언트에 포함되는 공개 설정:
+
+| 이름 | 필수 | 용도 |
+|---|---:|---|
+| `EXPO_PUBLIC_SUPABASE_URL` | 예 | Supabase 프로젝트 URL |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | 예 | Supabase publishable/legacy anon 키 |
+| `EXPO_PUBLIC_API_BASE` | 네이티브 빌드 | Vercel API 기준 주소 |
+| `EXPO_PUBLIC_SITE_URL` | 웹 | 비밀번호 재설정 복귀 주소 |
+| `EXPO_PUBLIC_SENTRY_DSN` | 아니오 | Sentry 오류 수집 |
+| `EXPO_PUBLIC_POSTHOG_KEY` | 아니오 | PostHog 이벤트 수집 |
+| `EXPO_PUBLIC_POSTHOG_HOST` | 아니오 | PostHog 수집 호스트 |
+
+서버·빌드 전용 비밀값:
+
+| 이름 | 필수 | 용도 |
+|---|---:|---|
+| `GOOGLE_MAPS_API_KEY` | Android 지도 빌드 | `app.config.js`가 네이티브 설정에 주입 |
+| `ANTHROPIC_API_KEY` | 아니오 | 장소 추출 fallback 구조화 |
+| `SUPABASE_URL` | 서버 권장 | 장소 추출 API의 Auth 검증 URL |
+| `SUPABASE_PUBLISHABLE_KEY` | 서버 권장 | 장소 추출 API의 Auth 검증 키 |
+
+`EXPO_PUBLIC_` 접두사가 붙은 값은 앱 번들에 포함됩니다. `service_role`, DB 비밀번호, 백업 패스프레이즈 같은 비밀값에는 절대 사용하지 마세요.
+
+### 4. 개발 서버
+
+```bash
+npm start
+npm run web
+npm run android
+npm run ios
+```
+
+`npm run ios`는 macOS와 iOS 개발 환경이 필요합니다.
+
+## 검사와 CI
+
+로컬 전체 검사:
+
+```bash
+npm run check
+npm run audit:ci
+```
+
+`npm run check`는 다음을 순서대로 실행합니다.
+
+1. TypeScript 검사
+2. 장소 추출 API 보안 회귀 검사
+3. Supabase 마이그레이션 보안 검사
+4. 사용자 디렉터리 페이지네이션 검사
+5. 의존성 감사 정책 및 구성 검사
+6. Expo 웹 export와 라우트 번들 검사
+7. Chrome/Chromium 웹 런타임 스모크 검사
+
+GitHub Actions `quality.yml`은 pull request, `main` push, 매주 월요일 09:00 KST, 수동 실행에서 같은 검사와 high·critical 의존성 감사를 수행합니다. 임시 감사 예외와 만료일은 [SECURITY.md](SECURITY.md)에 기록합니다.
+
+계정을 생성하는 통합 스모크 테스트는 명시적 변경 허용과 대상 URL이 있을 때만 실행합니다.
+
+```powershell
+$env:ALLOW_SMOKE_ACCOUNT_MUTATION='1'
+$env:EXPO_PUBLIC_SUPABASE_URL='https://target.supabase.co'
+$env:EXPO_PUBLIC_SUPABASE_ANON_KEY='target-publishable-key'
+node scripts/web-smoke.js http://localhost:8099
+```
+
+## Supabase 데이터베이스
+
+현재 마이그레이션 체계는 두 부분으로 나뉩니다.
+
+- `supabase/migration*.sql`, `schema.sql`: 기존 운영 DB에 수동 적용된 레거시 기록
+- `supabase/migrations/`: 앞으로 적용할 표준 CLI 타임스탬프 마이그레이션
+
+레거시 파일에는 최초 DB 전체 기준선이 없어 빈 프로젝트를 저장소만으로 완전히 재현할 수 없습니다. 운영 이력을 확인하지 않은 상태에서 레거시 SQL을 `supabase/migrations/`로 복사하거나 일부만 실행하면 안 됩니다.
+
+현재 표준 마이그레이션:
+
+| 파일 | 목적 | 운영 적용 상태 |
+|---|---|---|
+| `20260801074937_profile_view_rate_limit.sql` | 프로필 조회를 사용자·프로필당 하루 1회 원자적 집계 | 미적용 |
+| `20260809083954_harden_rls_and_function_permissions.sql` | RLS initPlan·함수 권한·FK 인덱스·관리자 정책 보강 | 미적용 |
+| `20260810231607_optimize_discover_queries.sql` | 사용자/프로필/맛집 피드 서버 집계와 키셋 커서 | 미적용 |
+
+운영 적용 전에는 스테이징 또는 Supabase 개발 브랜치에서 SQL 파싱, RLS 역할별 결과, 쿼리 결과·성능을 확인해야 합니다. 상세 절차는 [Supabase 마이그레이션 가이드](docs/SUPABASE-MIGRATIONS.md)를 따릅니다.
+
+핵심 공개 테이블은 `seoul_restaurants`, `profiles`, `list_likes`, `restaurant_reviews`, `collections`, `collection_items`, `reports`, `blocked_users`, `app_feedback`, `feedback_replies`입니다. 직접 접근 권한과 RLS 정책은 별개이므로 둘 다 검토해야 합니다.
+
+## 장소 추출 API 보안
+
+`POST /api/extract-place`는 Supabase access token이 있는 요청만 처리합니다.
+
+- 허용된 네이버·구글 HTTPS 호스트만 접근
+- 모든 redirect에서 DNS와 사설 IP를 다시 검사해 SSRF 차단
+- 자사 Vercel 도메인과 localhost로 브라우저 CORS 제한
+- JSON 10KB, HTML 2MB, redirect 5회, 외부 요청 timeout 제한
+- 인증·추출 응답 `Cache-Control: no-store`
+- 사용자별 인스턴스당 분당 10회 제한
+
+현재 Rate Limit은 서버리스 인스턴스 메모리 기반이므로 전역 분산 제한이 아닙니다. 트래픽 또는 AI 비용이 증가하면 Vercel Firewall이나 원자적 외부 저장소 기반 제한으로 교체해야 합니다.
+
+## 배포
+
+### Vercel 웹
+
+`vercel.json`은 `npm run build:web` 결과인 `dist/`를 배포하고, `/api/extract-place`를 Vercel Function으로 실행하며, SPA rewrite와 CSP/HSTS/클릭재킹 방지 헤더를 적용합니다.
+
+- 기능 브랜치 push와 Draft PR: Preview 자동 배포
+- `main` push: Vercel 프로젝트의 Production 배포 정책 적용
+- Preview 검증 전 Production 승격 금지
+- 로컬 또는 자동화에서 Production은 명시적 승인 없이 `--prod`, `promote`, merge 금지
+
+Preview 수동 검증 예시:
+
+```bash
+npx vercel pull --yes --environment preview
+npx vercel build
+npm run test:web-runtime -- .vercel/output/static
+npx vercel deploy --prebuilt
+```
+
+### EAS 모바일
+
+`eas.json`에는 `development`, `preview`, `preview-ios-sim`, `production` 프로필이 있습니다. Production 빌드/제출은 버전·스토어 정보·환경 변수를 확인하고 별도 승인 후 수행합니다.
+
+## 백업과 복구 범위
+
+`.github/workflows/db-backup.yml`은 `SUPABASE_DB_URL`과 `BACKUP_PASSPHRASE` 저장소 시크릿이 모두 있을 때 매주 월요일 03:00 KST에 `public` 스키마와 데이터를 덤프하고 AES-256-CBC로 암호화해 90일 보관합니다. 시크릿이 없으면 백업 비활성 상태를 숨기지 않도록 워크플로가 실패합니다.
+
+이 백업에는 `auth`, Storage 객체, 확장 관리 스키마와 Supabase 프로젝트 설정이 포함되지 않습니다. 전체 재해 복구 방법과 복원 순서는 [백업 가이드](docs/BACKUP.md)를 참고하세요.
+
+## 현재 운영 경계와 남은 작업
+
+- Production 배포와 운영 Supabase 마이그레이션은 검증·승인 후 별도로 수행
+- 새 RPC는 개발 DB가 없어 현재 정적 검사와 클라이언트 폴백까지만 검증됨
+- 전체 맛집 피드는 서버 집계를 사용하지만 앱 검색·필터는 현재 최대 500개 결과 안에서 수행
+- 사용자 디렉터리는 페이지당 30명을 표시하며, 표준 RPC 적용 DB에서는 키셋 조회하고 미적용 DB에서는 레거시 전체 조회 후 페이지 폴백
+- 운영 Supabase Advisor 경고는 미적용 보안 마이그레이션을 스테이징에서 검증한 뒤 해소 필요
+- 장소 추출 API Rate Limit의 분산 저장소 전환 필요
+- Supabase Auth 유출 비밀번호 차단 기능 활성화 검토
+- 의존성 감사의 `image-size` 임시 예외는 2026-09-30 전에 재검토
+
+## 관련 문서
+
+- [출시 체크리스트](docs/LAUNCH-CHECKLIST.md)
+- [스토어 제출 가이드](docs/STORE-SUBMISSION.md)
+- [Supabase 마이그레이션 가이드](docs/SUPABASE-MIGRATIONS.md)
+- [백업·복구 범위](docs/BACKUP.md)
+- [보안 점검 기록](SECURITY.md)
+- [서비스 소개](docs/ABOUT.md)
+- [기능 목록](docs/FEATURES.md)

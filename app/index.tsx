@@ -15,10 +15,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BrandIcon from '@/components/BrandIcon';
 import FilterBar from '@/components/FilterBar';
+import LoadErrorState from '@/components/LoadErrorState';
 import RestaurantCard from '@/components/RestaurantCard';
 import SearchBar from '@/components/SearchBar';
 import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
+import { notify } from '@/lib/confirm';
 import { DiscoverItem } from '@/types/restaurant';
 
 export default function HomeScreen() {
@@ -28,8 +30,14 @@ export default function HomeScreen() {
     restaurants,
     filteredRestaurants,
     loading,
+    error,
+    refreshRestaurants,
     searchQuery,
     setSearchQuery,
+    setProvinceFilter,
+    setAreaFilter,
+    setCategoryFilter,
+    setVisitedFilter,
     toggleVisited,
     toggleWishlist,
     getProfile,
@@ -39,6 +47,27 @@ export default function HomeScreen() {
   // ── 관심 지역 추천 ──────────────────────────────────────────────
   const [region, setRegion] = useState<string>('');
   const [recs, setRecs] = useState<DiscoverItem[]>([]);
+  const [updatingIds, setUpdatingIds] = useState<Set<string>>(() => new Set());
+
+  const handleToggle = useCallback(
+    async (id: string, kind: 'visited' | 'wishlist') => {
+      if (updatingIds.has(id)) return;
+      setUpdatingIds((prev) => new Set(prev).add(id));
+      try {
+        if (kind === 'visited') await toggleVisited(id);
+        else await toggleWishlist(id);
+      } catch {
+        notify('저장 실패', '변경 내용을 저장하지 못했어요. 잠시 후 다시 시도해주세요.');
+      } finally {
+        setUpdatingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }
+    },
+    [updatingIds, toggleVisited, toggleWishlist],
+  );
 
 
   const buildRecs = useCallback(
@@ -123,7 +152,25 @@ export default function HomeScreen() {
     );
   }
 
+  if (error) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <LoadErrorState
+          onRetry={refreshRestaurants}
+          title="내 맛집 목록을 불러오지 못했어요"
+        />
+      </SafeAreaView>
+    );
+  }
+
   const isEmpty = restaurants.length === 0;
+  const clearSearchAndFilters = () => {
+    setSearchQuery('');
+    setProvinceFilter(null);
+    setAreaFilter(null);
+    setCategoryFilter(null);
+    setVisitedFilter('all');
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
@@ -134,9 +181,10 @@ export default function HomeScreen() {
           <RestaurantCard
             restaurant={item}
             mode="own"
-            onPress={() => router.push(`/detail/${item.id}`)}
-            onToggleVisited={() => toggleVisited(item.id)}
-            onToggleWishlist={() => toggleWishlist(item.id)}
+            onPress={() => router.push(`/detail/${item.id}` as any)}
+            onToggleVisited={() => handleToggle(item.id, 'visited')}
+            onToggleWishlist={() => handleToggle(item.id, 'wishlist')}
+            updating={updatingIds.has(item.id)}
           />
         )}
         ListHeaderComponent={
@@ -182,7 +230,7 @@ export default function HomeScreen() {
                     <Pressable
                       key={it.key}
                       style={styles.recCard}
-                      onPress={() => router.push(`/detail/${it.representativeId}`)}
+                      onPress={() => router.push(`/detail/${it.representativeId}` as any)}
                     >
                       {it.image_url ? (
                         <Image source={{ uri: it.image_url }} style={styles.recImg} />
@@ -258,6 +306,14 @@ export default function HomeScreen() {
             <View style={styles.emptyBox}>
               <Text style={styles.emptyTitle}>검색 결과가 없어요</Text>
               <Text style={styles.emptySub}>다른 키워드나 필터로 찾아보세요</Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={clearSearchAndFilters}
+                style={({ pressed }) => [styles.resetBtn, pressed && { opacity: 0.85 }]}
+              >
+                <Ionicons name="refresh" size={17} color="#fff" />
+                <Text style={styles.resetBtnText}>검색·필터 초기화</Text>
+              </Pressable>
             </View>
           )
         }
@@ -395,6 +451,17 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   emptyBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  resetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FF7A45',
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: 12,
+    marginTop: 10,
+  },
+  resetBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   emptyGuideLink: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 16 },
   emptyGuideText: { color: '#FF7A45', fontSize: 13, fontWeight: '600' },
 });

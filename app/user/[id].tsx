@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import * as Linking from 'expo-linking';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,12 +15,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import BrandIcon from '@/components/BrandIcon';
 import Avatar from '@/components/Avatar';
 import ChipRow from '@/components/ChipRow';
+import LoadErrorState from '@/components/LoadErrorState';
 import ReportModal from '@/components/ReportModal';
 import RestaurantCard from '@/components/RestaurantCard';
 import SearchBar from '@/components/SearchBar';
 import { CATEGORIES, PROVINCES, inferDistrictFromAddress, inferProvinceFromAddress } from '@/constants/filters';
 import { track } from '@/lib/analytics';
 import { confirmAction, notify } from '@/lib/confirm';
+import { openExternalLink } from '@/lib/externalLink';
 import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
 import { Profile, Restaurant } from '@/types/restaurant';
@@ -35,7 +36,7 @@ export default function UserListScreen() {
   const { user } = useAuth();
   const {
     getUserRestaurants,
-    getUsers,
+    getProfile,
     copyRestaurant,
     likeList,
     unlikeList,
@@ -47,6 +48,9 @@ export default function UserListScreen() {
   const [items, setItems] = useState<Restaurant[]>([]);
   const [owner, setOwner] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [liking, setLiking] = useState(false);
+  const [copyingIds, setCopyingIds] = useState<Set<string>>(() => new Set());
   const [query, setQuery] = useState('');
   const [copiedIds, setCopiedIds] = useState<Set<string>>(new Set());
   const [province, setProvince] = useState<string | null>(null);
@@ -59,16 +63,17 @@ export default function UserListScreen() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
-      const [list, users] = await Promise.all([getUserRestaurants(id), getUsers()]);
+      const [list, profile] = await Promise.all([getUserRestaurants(id), getProfile(id)]);
       setItems(list);
-      setOwner(users.find((u) => u.id === id) ?? null);
+      setOwner(profile);
     } catch {
-      setItems([]);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
-  }, [id, getUserRestaurants, getUsers]);
+  }, [id, getUserRestaurants, getProfile]);
 
   useEffect(() => {
     load();
@@ -80,23 +85,40 @@ export default function UserListScreen() {
   }, [owner, navigation]);
 
   async function handleCopy(r: Restaurant) {
+    if (copyingIds.has(r.id) || copiedIds.has(r.id)) return;
+    setCopyingIds((prev) => new Set(prev).add(r.id));
     try {
       await copyRestaurant(r);
       setCopiedIds((prev) => new Set(prev).add(r.id));
-    } catch {
-      /* 무시 */
+      notify('담기 완료!', '내 리스트의 "가고싶음"에 추가됐어요.');
+    } catch (e: any) {
+      notify('담기 실패', e.message ?? '잠시 후 다시 시도해주세요.');
+    } finally {
+      setCopyingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(r.id);
+        return next;
+      });
     }
   }
 
   async function toggleLike() {
-    if (!owner || isMyList) return;
+    if (!owner || isMyList || liking) return;
+    setLiking(true);
     const liked = !owner.liked;
     setOwner({ ...owner, liked, like_count: (owner.like_count ?? 0) + (liked ? 1 : -1) });
     try {
       if (liked) await likeList(owner.id);
       else await unlikeList(owner.id);
     } catch {
-      load();
+      setOwner((current) =>
+        current
+          ? { ...current, liked: !liked, like_count: Math.max(0, (current.like_count ?? 0) + (liked ? -1 : 1)) }
+          : current,
+      );
+      notify('반영 실패', '좋아요를 저장하지 못했어요. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setLiking(false);
     }
   }
 
@@ -173,6 +195,14 @@ export default function UserListScreen() {
     );
   }
 
+  if (loadError) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <LoadErrorState onRetry={load} title="사용자 리스트를 불러오지 못했어요" />
+      </SafeAreaView>
+    );
+  }
+
   const q = query.trim().toLowerCase();
   const filtered = items.filter((r) => {
     if (q && !`${r.name} ${r.area ?? ''} ${r.memo ?? ''}`.toLowerCase().includes(q)) return false;
@@ -195,9 +225,9 @@ export default function UserListScreen() {
           <RestaurantCard
             restaurant={item}
             mode={isMyList ? 'own' : 'browse'}
-            onPress={() => router.push(`/detail/${item.id}`)}
+            onPress={() => router.push(`/detail/${item.id}` as any)}
             onCopy={() => handleCopy(item)}
-            copied={copiedIds.has(item.id) || (!isMyList && myNames.has(item.name))}
+            copied={copyingIds.has(item.id) || copiedIds.has(item.id) || (!isMyList && myNames.has(item.name))}
           />
         )}
         ListHeaderComponent={
@@ -231,7 +261,11 @@ export default function UserListScreen() {
                 {owner.sns_url ? (
                   <Pressable
                     style={styles.snsBtn}
-                    onPress={() => Linking.openURL(owner.sns_url!).catch(() => notify('오류', '링크를 열 수 없어요'))}
+                    onPress={() =>
+                      openExternalLink(owner.sns_url!).catch(() =>
+                        notify('링크 열기 실패', 'SNS 링크를 열 수 없어요. 주소를 확인해주세요.'),
+                      )
+                    }
                   >
                     <Ionicons name="logo-instagram" size={16} color="#E1306C" />
                     <Text style={styles.snsText} numberOfLines={1}>{owner.sns_url}</Text>
@@ -243,6 +277,9 @@ export default function UserListScreen() {
                   {!isMyList && (
                     <Pressable
                       onPress={toggleLike}
+                      disabled={liking}
+                      accessibilityRole="button"
+                      accessibilityState={{ busy: liking }}
                       style={[styles.likeBtn, owner.liked && styles.likeBtnActive]}
                     >
                       <Ionicons
@@ -353,7 +390,23 @@ export default function UserListScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyBox}>
-            <Text style={styles.emptySub}>{q ? '검색 결과가 없어요' : '아직 등록된 맛집이 없어요'}</Text>
+            <Text style={styles.emptySub}>
+              {q || province || district || category ? '검색 결과가 없어요' : '아직 등록된 맛집이 없어요'}
+            </Text>
+            {(q || province || district || category) && (
+              <Pressable
+                style={styles.resetBtn}
+                onPress={() => {
+                  setQuery('');
+                  setProvince(null);
+                  setDistrict(null);
+                  setCategory(null);
+                }}
+              >
+                <Ionicons name="refresh" size={16} color="#fff" />
+                <Text style={styles.resetBtnText}>검색·필터 초기화</Text>
+              </Pressable>
+            )}
           </View>
         }
         contentContainerStyle={styles.list}
@@ -453,6 +506,17 @@ const styles = StyleSheet.create({
   modDivider: { fontSize: 12, color: '#ddd' },
   emptyBox: { alignItems: 'center', paddingTop: 60 },
   emptySub: { fontSize: 14, color: '#aaa' },
+  resetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#6C5CE7',
+  },
+  resetBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
 
   // 필터 칩
   chipRow: { paddingHorizontal: 16, paddingVertical: 4, gap: 8, flexDirection: 'row', alignItems: 'center' },

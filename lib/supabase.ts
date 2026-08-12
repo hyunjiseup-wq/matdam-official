@@ -6,6 +6,12 @@ import { Platform } from 'react-native';
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    'Supabase 설정이 없습니다. EXPO_PUBLIC_SUPABASE_URL과 EXPO_PUBLIC_SUPABASE_ANON_KEY를 확인하세요.',
+  );
+}
+
 // 세션 저장소: 웹은 localStorage(새로고침/탭 종료 후에도 유지), 앱은 AsyncStorage.
 // 라이브러리 기본값에 의존하지 않고 명시적으로 지정해 로그인 유지를 보장한다.
 const authStorage =

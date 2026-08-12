@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRestaurants } from '@/context/RestaurantContext';
+import LoadErrorState from '@/components/LoadErrorState';
 import { Feedback, FeedbackStatus } from '@/types/restaurant';
 
 const TYPE_LABEL: Record<string, { label: string; color: string; bg: string }> = {
@@ -31,12 +32,15 @@ export default function MyFeedbackScreen() {
   const { getMyFeedback } = useRestaurants();
   const [items, setItems] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
     try {
       setItems(await getMyFeedback());
     } catch {
-      setItems([]);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -53,6 +57,14 @@ export default function MyFeedbackScreen() {
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#FF7A45" />
       </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <LoadErrorState onRetry={load} title="피드백 내역을 불러오지 못했어요" />
+      </SafeAreaView>
     );
   }
 

@@ -1,0 +1,23 @@
+* text=auto
+
+# 코드·설정·문서는 운영체제와 관계없이 LF로 저장한다.
+*.js text eol=lf
+*.mjs text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sql text eol=lf
+*.md text eol=lf
+*.toml text eol=lf
+*.csv text eol=lf
+
+# Windows 실행 스크립트와 바이너리 자산은 별도로 처리한다.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary

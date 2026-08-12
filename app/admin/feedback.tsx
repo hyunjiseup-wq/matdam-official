@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LoadErrorState from '@/components/LoadErrorState';
 import { useAuth } from '@/context/AuthContext';
 import { useRestaurants } from '@/context/RestaurantContext';
 import { Feedback, FeedbackStatus } from '@/types/restaurant';
@@ -40,13 +41,16 @@ export default function AdminFeedbackScreen() {
   const { getAllFeedback } = useRestaurants();
   const [items, setItems] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [filter, setFilter] = useState<'all' | FeedbackStatus>('all');
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
     try {
       setItems(await getAllFeedback());
     } catch {
-      setItems([]);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -65,6 +69,14 @@ export default function AdminFeedbackScreen() {
         <Ionicons name="lock-closed-outline" size={40} color="#ccc" />
         <Text style={styles.noAuth}>관리자만 볼 수 있는 화면이에요</Text>
       </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <LoadErrorState onRetry={load} title="피드백 목록을 불러오지 못했어요" />
+      </SafeAreaView>
     );
   }
 

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import BrandIcon from '@/components/BrandIcon';
 import React, { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { notify } from '@/lib/confirm';
 import { useRestaurants } from '@/context/RestaurantContext';
 import { ReportTargetType } from '@/types/restaurant';
@@ -37,6 +37,7 @@ export default function ReportModal({ visible, onClose, targetType, targetId, ta
   }
 
   async function handleSubmit() {
+    if (sending) return;
     if (!reason) {
       notify('신고 사유를 선택해주세요');
       return;
@@ -92,13 +93,17 @@ export default function ReportModal({ visible, onClose, targetType, targetId, ta
             placeholder="상세 내용 (선택)"
             placeholderTextColor="#bbb"
             multiline
+            maxLength={1000}
+            editable={!sending}
           />
+          <Text style={styles.counter}>{detail.length}/1000</Text>
 
           <Pressable
             onPress={handleSubmit}
             disabled={sending}
             style={({ pressed }) => [styles.submitBtn, pressed && { opacity: 0.85 }, sending && { opacity: 0.6 }]}
           >
+            {sending && <ActivityIndicator size="small" color="#fff" />}
             <Text style={styles.submitText}>{sending ? '접수 중...' : '신고 접수'}</Text>
           </Pressable>
         </View>
@@ -143,6 +148,9 @@ const styles = StyleSheet.create({
     borderColor: '#eee',
   },
   submitBtn: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 7,
     backgroundColor: '#FF7A45',
     borderRadius: 12,
     paddingVertical: 13,
@@ -150,4 +158,5 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   submitText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  counter: { color: '#aaa', fontSize: 11, textAlign: 'right', marginTop: -4 },
 });

@@ -110,7 +110,7 @@ export default function GuideScreen() {
         </View>
 
         {/* 시작 버튼 */}
-        <Pressable style={styles.startBtn} onPress={() => router.replace('/')}>
+        <Pressable style={styles.startBtn} onPress={() => router.replace('/' as any)}>
           <Text style={styles.startBtnText}>시작하기</Text>
           <Ionicons name="arrow-forward" size={18} color="#fff" />
         </Pressable>

@@ -1,20 +1,29 @@
-# 매주 월요일 03:00 KST에 Supabase DB를 덤프해 암호화 후 아티팩트로 보관 (90일)
+# 매주 월요일 03:00 KST에 Supabase public 스키마를 논리 덤프해 암호화 후 아티팩트로 보관 (90일)
 # 공개 저장소이므로 반드시 암호화해서 올린다.
+# auth/storage/확장 관리 스키마와 Storage 파일은 이 덤프에 포함되지 않는다.
 # 필요한 시크릿(Settings → Secrets and variables → Actions):
 #   SUPABASE_DB_URL   — Supabase 대시보드 Connect → Session pooler URI (비밀번호 포함)
 #   BACKUP_PASSPHRASE — 복호화용 임의의 긴 문자열 (분실 시 백업 복구 불가)
-# 시크릿이 없으면 아무것도 하지 않고 성공으로 끝난다. 자세한 사용법: docs/BACKUP.md
+# 시크릿이 없으면 백업 비활성 상태가 묻히지 않도록 실패한다. 자세한 사용법: docs/BACKUP.md
 
-name: DB 백업
+name: DB 논리 백업
 
 on:
   schedule:
     - cron: '0 18 * * 0' # 일요일 18:00 UTC = 월요일 03:00 KST
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
 jobs:
   dump:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: 시크릿 확인
         id: check
@@ -26,18 +35,19 @@ jobs:
 
       - name: Supabase CLI 설치
         if: steps.check.outputs.skip != 'true'
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v2.1.1
         with:
-          version: latest
+          # 재현 가능한 백업을 위해 검증된 안정 버전을 고정한다.
+          version: 2.101.0
 
-      - name: 덤프 생성 + 암호화
+      - name: public 스키마 덤프 생성 + 암호화
         if: steps.check.outputs.skip != 'true'
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
-          supabase db dump --db-url "$SUPABASE_DB_URL" -f schema.sql
-          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only -f data.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" --schema public -f schema.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" --schema public --data-only -f data.sql
           tar czf dump.tgz schema.sql data.sql
           openssl enc -aes-256-cbc -pbkdf2 -salt -in dump.tgz -out dump.tgz.enc -pass env:BACKUP_PASSPHRASE
           rm -f dump.tgz schema.sql data.sql
@@ -45,8 +55,16 @@ jobs:
 
       - name: 아티팩트 업로드 (90일 보관)
         if: steps.check.outputs.skip != 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: db-backup-${{ github.run_number }}
           path: dump.tgz.enc
+          if-no-files-found: error
+          compression-level: 0
           retention-days: 90
+
+      - name: 백업 미설정 경고
+        if: steps.check.outputs.skip == 'true'
+        run: |
+          echo "::warning::DB 백업이 비활성 상태입니다. 저장소 시크릿 2개를 등록하세요."
+          exit 1

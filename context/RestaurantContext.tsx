@@ -36,11 +36,117 @@ import {
 type NewRestaurant = Omit<Restaurant, 'id' | 'owner_id' | 'created_at' | 'updated_at'>;
 type EditRestaurant = Partial<Omit<Restaurant, 'id' | 'owner_id' | 'created_at'>>;
 
+export interface UserDirectoryCursor {
+  likeCount: number;
+  viewCount: number;
+  restaurantCount: number;
+  id: string;
+}
+
+export interface UserDirectoryPage {
+  items: Profile[];
+  nextCursor: UserDirectoryCursor | null;
+}
+
+type ProfileSummaryRow = Omit<Profile, 'count' | 'like_count' | 'liked'> & {
+  restaurant_count: number | string;
+  like_count: number | string;
+  liked: boolean;
+};
+
+type DiscoverFeedRow = {
+  group_key: string;
+  representative_id: string;
+  name: string;
+  area: string | null;
+  category: string | null;
+  address: string | null;
+  image_url: string | null;
+  map_source: string | null;
+  price_range: string | null;
+  lat: number | null;
+  lng: number | null;
+  added_count: number | string;
+  visited_count: number | string;
+  avg_rating: number | string;
+  review_count: number | string;
+  top_owners: (OwnerRef & { sns_url?: string | null; avatar_url?: string | null })[] | null;
+};
+
+function isMissingRpcError(error: { code?: string } | null): boolean {
+  return error?.code === 'PGRST202' || error?.code === '42883';
+}
+
+function fromProfileSummaryRow(row: ProfileSummaryRow): Profile {
+  const { restaurant_count, ...profile } = row;
+  return {
+    ...profile,
+    count: Number(restaurant_count),
+    like_count: Number(row.like_count),
+    liked: row.liked,
+  };
+}
+
+function cursorFromProfile(profile: Profile): UserDirectoryCursor {
+  return {
+    likeCount: profile.like_count ?? 0,
+    viewCount: profile.view_count ?? 0,
+    restaurantCount: profile.count ?? 0,
+    id: profile.id,
+  };
+}
+
+function isProfileAfterCursor(profile: Profile, cursor: UserDirectoryCursor): boolean {
+  const likeCount = profile.like_count ?? 0;
+  const viewCount = profile.view_count ?? 0;
+  const restaurantCount = profile.count ?? 0;
+  return likeCount < cursor.likeCount
+    || (likeCount === cursor.likeCount && viewCount < cursor.viewCount)
+    || (
+      likeCount === cursor.likeCount
+      && viewCount === cursor.viewCount
+      && restaurantCount < cursor.restaurantCount
+    )
+    || (
+      likeCount === cursor.likeCount
+      && viewCount === cursor.viewCount
+      && restaurantCount === cursor.restaurantCount
+      && profile.id > cursor.id
+    );
+}
+
+function fromDiscoverFeedRow(row: DiscoverFeedRow): DiscoverItem {
+  return {
+    key: row.group_key,
+    representativeId: row.representative_id,
+    name: row.name,
+    area: row.area ?? undefined,
+    category: row.category ?? undefined,
+    address: row.address ?? undefined,
+    image_url: row.image_url ?? undefined,
+    map_source: (row.map_source as Restaurant['map_source']) ?? undefined,
+    price_range: row.price_range ?? undefined,
+    lat: row.lat ?? undefined,
+    lng: row.lng ?? undefined,
+    addedCount: Number(row.added_count),
+    visitedCount: Number(row.visited_count),
+    avgRating: Number(row.avg_rating),
+    reviewCount: Number(row.review_count),
+    topOwners: (row.top_owners ?? []).map((owner) => ({
+      ...owner,
+      like_count: Number(owner.like_count),
+      sns_url: owner.sns_url ?? undefined,
+      avatar_url: owner.avatar_url ?? undefined,
+    })),
+  };
+}
+
 interface RestaurantContextType {
   restaurants: Restaurant[];
   filteredRestaurants: Restaurant[];
   loading: boolean;
   error: string | null;
+  refreshRestaurants: () => Promise<void>;
   searchQuery: string;
   provinceFilter: string | null;
   areaFilter: string | null;
@@ -62,6 +168,7 @@ interface RestaurantContextType {
   uploadPhoto: (file: Blob, maxDim?: number) => Promise<string>;
   // 둘러보기 / 프로필
   getUsers: () => Promise<Profile[]>;
+  getUsersPage: (cursor?: UserDirectoryCursor | null, limit?: number) => Promise<UserDirectoryPage>;
   getUserRestaurants: (userId: string) => Promise<Restaurant[]>;
   getDiscoverFeed: () => Promise<DiscoverItem[]>;
   getMyInfluence: () => Promise<MyInfluence>;
@@ -257,6 +364,21 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       setError(null);
     }
   }, []);
+
+  const refreshRestaurants = useCallback(async () => {
+    if (!userId) {
+      setRestaurants([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      await fetchMine(userId);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId, fetchMine]);
 
   useEffect(() => {
     if (!userId) {
@@ -487,7 +609,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
 
   // ── 둘러보기 / 프로필 ─────────────────────────────────────────────────────
 
-  const getUsers = useCallback(async (): Promise<Profile[]> => {
+  const getLegacyUsers = useCallback(async (): Promise<Profile[]> => {
     const { data: profs, error: pErr } = await supabase.from('profiles').select('*');
     if (pErr) throw new Error(pErr.message);
 
@@ -519,10 +641,52 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       (a, b) =>
         (b.like_count ?? 0) - (a.like_count ?? 0) ||
         (b.view_count ?? 0) - (a.view_count ?? 0) ||
-        (b.count ?? 0) - (a.count ?? 0),
+        (b.count ?? 0) - (a.count ?? 0) ||
+        (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
     );
     return result;
   }, [userId]);
+
+  const getUsersPage = useCallback(
+    async (cursor: UserDirectoryCursor | null = null, limit = 30): Promise<UserDirectoryPage> => {
+      const pageSize = Math.min(Math.max(Math.trunc(limit), 1), 100);
+      const { data: directory, error: directoryError } = await supabase.rpc(
+        'get_user_directory_page',
+        {
+          p_limit: pageSize,
+          p_after_like_count: cursor?.likeCount ?? null,
+          p_after_view_count: cursor?.viewCount ?? null,
+          p_after_restaurant_count: cursor?.restaurantCount ?? null,
+          p_after_id: cursor?.id ?? null,
+        },
+      );
+      if (!directoryError) {
+        const items = ((directory ?? []) as ProfileSummaryRow[]).map(fromProfileSummaryRow);
+        return {
+          items,
+          nextCursor: items.length === pageSize ? cursorFromProfile(items[items.length - 1]) : null,
+        };
+      }
+      if (!isMissingRpcError(directoryError)) throw new Error(directoryError.message);
+
+      // 마이그레이션 적용 전 Preview/운영 환경과의 호환 폴백.
+      const all = await getLegacyUsers();
+      const remaining = cursor ? all.filter((profile) => isProfileAfterCursor(profile, cursor)) : all;
+      const items = remaining.slice(0, pageSize);
+      return {
+        items,
+        nextCursor: pageSize < remaining.length && items.length > 0
+          ? cursorFromProfile(items[items.length - 1])
+          : null,
+      };
+    },
+    [getLegacyUsers],
+  );
+
+  const getUsers = useCallback(async (): Promise<Profile[]> => {
+    const page = await getUsersPage(null, 100);
+    return page.items;
+  }, [getUsersPage]);
 
   const getUserRestaurants = useCallback(async (uid: string): Promise<Restaurant[]> => {
     const { data, error: err } = await supabase
@@ -540,6 +704,18 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
     const cached = discoverCacheRef.current;
     if (cached && Date.now() - cached.at < 60_000) return cached.data;
 
+    const { data: feedPage, error: feedError } = await supabase.rpc(
+      'get_discover_feed_page',
+      { p_limit: 500 },
+    );
+    if (!feedError) {
+      const items = ((feedPage ?? []) as DiscoverFeedRow[]).map(fromDiscoverFeedRow);
+      discoverCacheRef.current = { at: Date.now(), data: items };
+      return items;
+    }
+    if (!isMissingRpcError(feedError)) throw new Error(feedError.message);
+
+    // 마이그레이션 적용 전 Preview/운영 환경과의 호환 폴백.
     const [rowsRes, profsRes, likesRes, reviewsRes] = await Promise.all([
       supabase.from('seoul_restaurants').select(DISCOVER_COLUMNS),
       supabase.from('profiles').select('id, display_name, is_admin, sns_url, avatar_url'),
@@ -690,9 +866,45 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
   }, [userId]);
 
   const getProfile = useCallback(async (uid: string): Promise<Profile | null> => {
-    const { data } = await supabase.from('profiles').select('*').eq('id', uid).single();
-    return (data as Profile) ?? null;
-  }, []);
+    const { data: summaries, error: summaryError } = await supabase.rpc(
+      'get_profile_summary',
+      { p_id: uid },
+    );
+    if (!summaryError) {
+      const row = (summaries as ProfileSummaryRow[] | null)?.[0];
+      return row ? fromProfileSummaryRow(row) : null;
+    }
+    if (!isMissingRpcError(summaryError)) throw new Error(summaryError.message);
+
+    // RPC가 아직 없는 배포에서도 전체 테이블 스캔 없이 프로필 통계를 계산한다.
+    const viewerId = userId ?? '00000000-0000-0000-0000-000000000000';
+    const [profileRes, restaurantCountRes, likeCountRes, myLikeRes] = await Promise.all([
+      supabase.from('profiles').select('*').eq('id', uid).maybeSingle(),
+      supabase
+        .from('seoul_restaurants')
+        .select('id', { count: 'exact', head: true })
+        .eq('owner_id', uid),
+      supabase
+        .from('list_likes')
+        .select('owner_id', { count: 'exact', head: true })
+        .eq('owner_id', uid),
+      supabase
+        .from('list_likes')
+        .select('owner_id')
+        .eq('liker_id', viewerId)
+        .eq('owner_id', uid)
+        .limit(1),
+    ]);
+    if (profileRes.error) throw new Error(profileRes.error.message);
+    if (!profileRes.data) return null;
+
+    return {
+      ...(profileRes.data as Profile),
+      count: restaurantCountRes.count ?? 0,
+      like_count: likeCountRes.count ?? 0,
+      liked: (myLikeRes.data?.length ?? 0) > 0,
+    };
+  }, [userId]);
 
   const updateProfile = useCallback(
     async (patch: { display_name?: string; bio?: string; sns_url?: string; avatar_url?: string; preferred_region?: string }) => {
@@ -1075,6 +1287,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       filteredRestaurants,
       loading,
       error,
+      refreshRestaurants,
       searchQuery,
       provinceFilter,
       areaFilter,
@@ -1095,6 +1308,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       copyRestaurant,
       uploadPhoto,
       getUsers,
+      getUsersPage,
       getUserRestaurants,
       getDiscoverFeed,
       getMyInfluence,
@@ -1134,6 +1348,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       filteredRestaurants,
       loading,
       error,
+      refreshRestaurants,
       searchQuery,
       provinceFilter,
       areaFilter,
@@ -1149,6 +1364,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
       copyRestaurant,
       uploadPhoto,
       getUsers,
+      getUsersPage,
       getUserRestaurants,
       getDiscoverFeed,
       getMyInfluence,

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Avatar from '@/components/Avatar';
+import LoadErrorState from '@/components/LoadErrorState';
 import ChipRow from '@/components/ChipRow';
 import SearchBar from '@/components/SearchBar';
 import { CATEGORIES, PROVINCES, inferDistrictFromAddress, inferProvinceFromAddress } from '@/constants/filters';
@@ -121,13 +122,24 @@ function DiscoverCard({
   onSave: () => void;
   saved: boolean;
 }) {
+  const [imageFailed, setImageFailed] = useState(false);
   const sub = [item.area, item.category, item.price_range].filter(Boolean).join(' · ');
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [item.image_url]);
+
   return (
     <Pressable onPress={onOpen} style={({ pressed }) => [styles.card, pressed && { opacity: 0.96 }]}>
       {/* 대표 사진 */}
       <View style={styles.imageWrap}>
-        {item.image_url ? (
-          <Image source={{ uri: item.image_url }} style={styles.image} />
+        {item.image_url && !imageFailed ? (
+          <Image
+            source={{ uri: item.image_url }}
+            style={styles.image}
+            onError={() => setImageFailed(true)}
+            accessibilityLabel={`${item.name} 사진`}
+          />
         ) : (
           <View style={[styles.image, styles.imagePlaceholder]}>
             <Ionicons name="restaurant" size={34} color="#fff" />
@@ -188,6 +200,7 @@ export default function DiscoverScreen() {
   const [district, setDistrict] = useState<string | null>(null);
   const [category, setCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -210,12 +223,13 @@ export default function DiscoverScreen() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const [f, u] = await Promise.all([getDiscoverFeed(), getUsers()]);
       setFeed(f);
       setUsers(u);
     } catch {
-      setFeed([]);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -227,19 +241,23 @@ export default function DiscoverScreen() {
 
   const handleSave = useCallback(
     async (item: DiscoverItem) => {
+      if (savedKeys.has(item.key)) return;
       setSavedKeys((prev) => new Set(prev).add(item.key)); // 낙관적
       try {
         const full = await fetchRestaurantById(item.representativeId);
-        if (full) await copyRestaurant(full);
+        if (!full) throw new Error('맛집 정보를 찾을 수 없어요.');
+        await copyRestaurant(full);
+        notify('담기 완료!', '내 리스트의 "가고싶음"에 추가됐어요.');
       } catch {
         setSavedKeys((prev) => {
           const n = new Set(prev);
           n.delete(item.key);
           return n;
         });
+        notify('담기 실패', '잠시 후 다시 시도해주세요.');
       }
     },
-    [fetchRestaurantById, copyRestaurant],
+    [savedKeys, fetchRestaurantById, copyRestaurant],
   );
 
   const q = query.trim().toLowerCase();
@@ -302,6 +320,14 @@ export default function DiscoverScreen() {
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#6C5CE7" />
       </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <LoadErrorState onRetry={load} title="맛집 둘러보기를 불러오지 못했어요" />
+      </SafeAreaView>
     );
   }
 

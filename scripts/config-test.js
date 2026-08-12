@@ -12,6 +12,7 @@ const envExample = fs.readFileSync(path.join(root, '.env.example'), 'utf8');
 const gitignore = fs.readFileSync(path.join(root, '.gitignore'), 'utf8');
 const gitattributes = fs.readFileSync(path.join(root, '.gitattributes'), 'utf8');
 const dependabot = fs.readFileSync(path.join(root, '.github', 'dependabot.yml'), 'utf8');
+const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
 const workflowSources = [
   path.join(root, '.github', 'workflows', 'quality.yml'),
   path.join(root, '.github', 'workflows', 'db-backup.yml'),
@@ -54,6 +55,18 @@ assert.equal(pkg.allowScripts['@sentry/cli@2.58.4'], true);
 assert.equal(pkg.allowScripts['core-js'], false);
 assert.ok(pkg.dependencies['expo-dev-client'], 'developmentClient 프로필에는 expo-dev-client가 필요합니다.');
 assert.equal(pkg.engines.node, '>=22 <25');
+assert.match(readme, /Expo SDK 56/);
+assert.match(readme, /React Native 0\.85/);
+assert.match(readme, /Node\.js 22~24/);
+assert.match(readme, /scripts\/pagination-test\.js|페이지네이션 검사/);
+assert.match(readme, /20260810231607_optimize_discover_queries\.sql/);
+assert.match(readme, /운영 적용 상태[\s\S]*미적용/);
+assert.match(readme, /\.github\/workflows\/quality\.yml|`quality\.yml`/);
+assert.match(readme, /\.github\/workflows\/db-backup\.yml|`db-backup\.yml`/);
+assert.match(readme, /Preview 검증 전 Production 승격 금지/);
+assert.match(readme, /인스턴스당 분당 10회/);
+assert.doesNotMatch(readme, /Expo SDK 51/);
+assert.doesNotMatch(readme, /303곳|312곳/);
 assert.ok(pkg.scripts.check.includes('typecheck'));
 assert.ok(pkg.scripts.check.includes('build:web'));
 assert.ok(pkg.scripts.check.includes('test:web-runtime'));
